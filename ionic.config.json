@@ -1,0 +1,7 @@
+{
+  "name": "memory-trails-app",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular-standalone"
+}
