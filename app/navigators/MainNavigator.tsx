@@ -1,27 +1,23 @@
+import { translate } from "@/i18n"
+import type { ThemedStyle } from "@/theme"
+import { useAppTheme } from "@/utils/useAppTheme"
 import { BottomTabScreenProps, createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { CompositeScreenProps } from "@react-navigation/native"
 import { TextStyle, ViewStyle } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Icon } from "../components"
-import { translate } from "@/i18n"
-import { DemoCommunityScreen, DemoShowroomScreen, DemoDebugScreen } from "../screens"
+import { DemoCommunityScreen, DemoDebugScreen } from "../screens"
 import { DemoPodcastListScreen } from "../screens/DemoPodcastListScreen"
-import type { ThemedStyle } from "@/theme"
 import { AppStackParamList, AppStackScreenProps } from "./AppNavigator"
-import { useAppTheme } from "@/utils/useAppTheme"
 
 export type DemoTabParamList = {
+  Photos: undefined
   DemoCommunity: undefined
-  DemoShowroom: { queryIndex?: string; itemIndex?: string }
+  // DemoShowroomScreen: { queryIndex?: string; itemIndex?: string }
   DemoDebug: undefined
   DemoPodcastList: undefined
 }
 
-/**
- * Helper for automatically generating navigation prop types for each route.
- *
- * More info: https://reactnavigation.org/docs/typescript/#organizing-types
- */
 export type DemoTabScreenProps<T extends keyof DemoTabParamList> = CompositeScreenProps<
   BottomTabScreenProps<DemoTabParamList, T>,
   AppStackScreenProps<keyof AppStackParamList>
@@ -34,9 +30,9 @@ const Tab = createBottomTabNavigator<DemoTabParamList>()
  * Each tab is a stack navigator with its own set of screens.
  *
  * More info: https://reactnavigation.org/docs/bottom-tab-navigator/
- * @returns {JSX.Element} The rendered `DemoNavigator`.
+ * @returns {JSX.Element} The rendered `MainNavigator`.
  */
-export function DemoNavigator() {
+export function MainNavigator() {
   const { bottom } = useSafeAreaInsets()
   const {
     themed,
@@ -56,23 +52,12 @@ export function DemoNavigator() {
       }}
     >
       <Tab.Screen
-        name="DemoShowroom"
-        component={DemoShowroomScreen}
-        options={{
-          tabBarLabel: translate("demoNavigator:componentsTab"),
-          tabBarIcon: ({ focused }) => (
-            <Icon icon="components" color={focused ? colors.tint : colors.tintInactive} size={30} />
-          ),
-        }}
-      />
-
-      <Tab.Screen
         name="DemoCommunity"
         component={DemoCommunityScreen}
         options={{
           tabBarLabel: translate("demoNavigator:communityTab"),
           tabBarIcon: ({ focused }) => (
-            <Icon icon="community" color={focused ? colors.tint : colors.tintInactive} size={30} />
+            <Icon icon="heart" color={focused ? colors.tint : colors.tintInactive} size={30} />
           ),
         }}
       />
@@ -84,7 +69,7 @@ export function DemoNavigator() {
           tabBarAccessibilityLabel: translate("demoNavigator:podcastListTab"),
           tabBarLabel: translate("demoNavigator:podcastListTab"),
           tabBarIcon: ({ focused }) => (
-            <Icon icon="podcast" color={focused ? colors.tint : colors.tintInactive} size={30} />
+            <Icon icon="lock" color={focused ? colors.tint : colors.tintInactive} size={30} />
           ),
         }}
       />
@@ -95,7 +80,7 @@ export function DemoNavigator() {
         options={{
           tabBarLabel: translate("demoNavigator:debugTab"),
           tabBarIcon: ({ focused }) => (
-            <Icon icon="debug" color={focused ? colors.tint : colors.tintInactive} size={30} />
+            <Icon icon="settings" color={focused ? colors.tint : colors.tintInactive} size={30} />
           ),
         }}
       />
