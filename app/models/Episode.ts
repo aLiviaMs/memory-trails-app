@@ -1,7 +1,6 @@
 import { Instance, SnapshotIn, SnapshotOut, types } from "mobx-state-tree"
-import { withSetPropAction } from "./helpers/withSetPropAction"
 import { formatDate } from "../utils/formatDate"
-import { translate } from "@/i18n"
+import { withSetPropAction } from "./helpers/withSetPropAction"
 
 interface Enclosure {
   link: string
@@ -46,12 +45,9 @@ export const EpisodeModel = types
         const formatted = formatDate(episode.pubDate)
         return {
           textLabel: formatted,
-          accessibilityLabel: translate("demoPodcastListScreen:accessibility.publishLabel", {
-            date: formatted,
-          }),
         }
       } catch {
-        return { textLabel: "", accessibilityLabel: "" }
+        return { textLabel: "" }
       }
     },
     get duration() {
@@ -65,11 +61,6 @@ export const EpisodeModel = types
       const sDisplay = s > 0 ? s : ""
       return {
         textLabel: hDisplay + mDisplay + sDisplay,
-        accessibilityLabel: translate("demoPodcastListScreen:accessibility.durationLabel", {
-          hours: h,
-          minutes: m,
-          seconds: s,
-        }),
       }
     },
   }))

@@ -1,3 +1,6 @@
+import { isRTL, translate } from "@/i18n"
+import type { ThemedStyle } from "@/theme"
+import { useAppTheme } from "@/utils/useAppTheme"
 import { ReactElement } from "react"
 import {
   StyleProp,
@@ -7,13 +10,10 @@ import {
   View,
   ViewStyle,
 } from "react-native"
-import { isRTL, translate } from "@/i18n"
 import { $styles } from "../theme"
 import { ExtendedEdge, useSafeAreaInsetsStyle } from "../utils/useSafeAreaInsetsStyle"
 import { IconTypes, PressableIcon } from "./Icon"
 import { Text, TextProps } from "./Text"
-import { useAppTheme } from "@/utils/useAppTheme"
-import type { ThemedStyle } from "@/theme"
 
 export interface HeaderProps {
   /**
@@ -206,7 +206,7 @@ export function Header(props: HeaderProps) {
           >
             <Text
               weight="medium"
-              size="md"
+              size="xl"
               text={titleContent}
               style={[$title, $titleStyleOverride]}
             />
@@ -248,7 +248,7 @@ function HeaderAction(props: HeaderActionProps) {
         disabled={!onPress}
         activeOpacity={0.8}
       >
-        <Text weight="medium" size="md" text={content} style={themed($actionText)} />
+        <Text weight="medium" size="xxl" text={content} style={themed($actionText)} />
       </TouchableOpacity>
     )
   }

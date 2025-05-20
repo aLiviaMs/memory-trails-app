@@ -1,4 +1,6 @@
 import { translate } from "@/i18n"
+import { HappinessDiaryScreen } from "@/screens/HappinessDiaryScreen"
+import { PhotosScreen } from "@/screens/PhotosScreen"
 import type { ThemedStyle } from "@/theme"
 import { useAppTheme } from "@/utils/useAppTheme"
 import { BottomTabScreenProps, createBottomTabNavigator } from "@react-navigation/bottom-tabs"
@@ -6,19 +8,16 @@ import { CompositeScreenProps } from "@react-navigation/native"
 import { TextStyle, ViewStyle } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Icon } from "../components"
-import { DemoCommunityScreen, DemoDebugScreen } from "../screens"
-import { DemoPodcastListScreen } from "../screens/DemoPodcastListScreen"
+import { SettingsScreen } from "../screens"
 import { AppStackParamList, AppStackScreenProps } from "./AppNavigator"
 
 export type DemoTabParamList = {
   Photos: undefined
-  DemoCommunity: undefined
-  // DemoShowroomScreen: { queryIndex?: string; itemIndex?: string }
-  DemoDebug: undefined
-  DemoPodcastList: undefined
+  Settings: undefined
+  HappinessDiary: undefined
 }
 
-export type DemoTabScreenProps<T extends keyof DemoTabParamList> = CompositeScreenProps<
+export type HomeTabScreenProps<T extends keyof DemoTabParamList> = CompositeScreenProps<
   BottomTabScreenProps<DemoTabParamList, T>,
   AppStackScreenProps<keyof AppStackParamList>
 >
@@ -52,10 +51,10 @@ export function MainNavigator() {
       }}
     >
       <Tab.Screen
-        name="DemoCommunity"
-        component={DemoCommunityScreen}
+        name="Photos"
+        component={PhotosScreen}
         options={{
-          tabBarLabel: translate("demoNavigator:communityTab"),
+          tabBarLabel: translate("navigator:communityTab"),
           tabBarIcon: ({ focused }) => (
             <Icon icon="heart" color={focused ? colors.tint : colors.tintInactive} size={30} />
           ),
@@ -63,11 +62,11 @@ export function MainNavigator() {
       />
 
       <Tab.Screen
-        name="DemoPodcastList"
-        component={DemoPodcastListScreen}
+        name="HappinessDiary"
+        component={HappinessDiaryScreen}
         options={{
-          tabBarAccessibilityLabel: translate("demoNavigator:podcastListTab"),
-          tabBarLabel: translate("demoNavigator:podcastListTab"),
+          tabBarAccessibilityLabel: translate("navigator:podcastListTab"),
+          tabBarLabel: translate("navigator:podcastListTab"),
           tabBarIcon: ({ focused }) => (
             <Icon icon="lock" color={focused ? colors.tint : colors.tintInactive} size={30} />
           ),
@@ -75,10 +74,10 @@ export function MainNavigator() {
       />
 
       <Tab.Screen
-        name="DemoDebug"
-        component={DemoDebugScreen}
+        name="Settings"
+        component={SettingsScreen}
         options={{
-          tabBarLabel: translate("demoNavigator:debugTab"),
+          tabBarLabel: translate("navigator:debugTab"),
           tabBarIcon: ({ focused }) => (
             <Icon icon="settings" color={focused ? colors.tint : colors.tintInactive} size={30} />
           ),
