@@ -1,4 +1,6 @@
-import { forwardRef, ReactElement, ComponentType } from "react"
+import type { ThemedStyle } from "@/theme"
+import { useAppTheme } from "@/utils/useAppTheme"
+import { ComponentType, forwardRef, ReactElement } from "react"
 import {
   StyleProp,
   TextStyle,
@@ -10,8 +12,6 @@ import {
 import { $styles } from "../theme"
 import { Icon, IconTypes } from "./Icon"
 import { Text, TextProps } from "./Text"
-import type { ThemedStyle } from "@/theme"
-import { useAppTheme } from "@/utils/useAppTheme"
 
 export interface ListItemProps extends TouchableOpacityProps {
   /**
@@ -217,7 +217,7 @@ const $separatorBottom: ThemedStyle<ViewStyle> = ({ colors }) => ({
 })
 
 const $textStyle: ThemedStyle<TextStyle> = ({ spacing }) => ({
-  paddingVertical: spacing.xs,
+  paddingVertical: 0,
   alignSelf: "center",
   flexGrow: 1,
   flexShrink: 1,

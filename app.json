@@ -29,7 +29,10 @@
     "ios": {
       "icon": "./assets/images/app-icon-ios.png",
       "supportsTablet": true,
-      "bundleIdentifier": "com.memorytrails"
+      "bundleIdentifier": "com.memorytrails",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Este aplicativo precisa acessar a biblioteca de fotos para permitir que você selecione e faça upload de imagens."
+      }
     },
     "web": {
       "favicon": "./assets/images/app-icon-web-favicon.png",
@@ -44,7 +47,11 @@
           "image": "./assets/images/app-icon-android-adaptive-foreground.png",
           "imageWidth": 300,
           "resizeMode": "contain",
-          "backgroundColor": "#191015"
+          "backgroundColor": "#191015",
+          "permissions": [
+            "READ_EXTERNAL_STORAGE",
+            "WRITE_EXTERNAL_STORAGE"
+          ]
         }
       ]
     ],
