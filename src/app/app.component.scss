@@ -1,0 +1,217 @@
+@use './styles/common/variables' as vars;
+@use './styles/common/breakpoints' as bp;
+@use './styles/common/mixins' as mx;
+
+// Block: app
+.app {
+  min-height: 100vh;
+  position: relative;
+  background: var(--surface-ground);
+
+  // Modifier: loading
+  &--loading {
+    .app__main {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+  }
+
+  // Modifier: error
+  &--error {
+    .app__header {
+      border-bottom-color: var(--red-500);
+    }
+  }
+
+  // Modifier: success
+  &--success {
+    .app__header {
+      border-bottom-color: var(--green-500);
+    }
+  }
+
+  // Element: content
+  &__content {
+    @include mx.transition(margin-left);
+    min-height: 100vh;
+    padding: 0;
+
+    // Modifier: menu-open
+    &--menu-open {
+      margin-left: vars.$menu-width;
+    }
+  }
+
+  // Element: header
+  &__header {
+    @include mx.flex-between;
+    padding: vars.$content-padding vars.$content-padding 1rem;
+    background: white;
+    border-bottom: 2px solid var(--primary-color);
+    @include mx.shadow(light);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    min-height: vars.$header-height;
+  }
+
+  // Element: title
+  &__title {
+    margin: 0;
+    color: var(--primary-color);
+    font-weight: 600;
+    font-size: 2rem;
+    line-height: 1.2;
+
+    // Modifier: loading
+    &--loading {
+      @include mx.shimmer-skeleton;
+      color: transparent;
+      border-radius: 4px;
+    }
+  }
+
+  // Element: actions
+  &__actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  // Element: menu-btn
+  &__menu-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: vars.$border-radius-base;
+    padding: 0.75rem;
+    cursor: pointer;
+    @include mx.transition();
+    @include mx.flex-center;
+    min-width: 44px;
+    min-height: 44px;
+
+    &:hover {
+      background: var(--primary-600);
+      transform: translateY(-2px);
+      @include mx.shadow(medium);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+
+    // Modifier: disabled
+    &--disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+  }
+
+  // Element: menu-btn-icon
+  &__menu-btn-icon {
+    font-size: 1.1rem;
+  }
+
+  // Element: main
+  &__main {
+    padding: vars.$content-padding;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+
+    // Modifier: loading
+    &--loading {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+  }
+
+  // Element: menu-footer
+  &__menu-footer {
+    text-align: center;
+    color: var(--text-color-secondary);
+  }
+
+  // Element: version
+  &__version {
+    margin: 0.25rem 0;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    font-weight: 600;
+    color: var(--primary-color);
+  }
+
+  // Element: copyright
+  &__copyright {
+    margin: 0.25rem 0;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    opacity: 0.8;
+  }
+}
+
+// Responsive Design
+@include bp.respond-to(mobile) {
+  .app {
+    &__content {
+      // Override menu-open modifier on mobile
+      &--menu-open {
+        margin-left: 0;
+      }
+    }
+
+    &__header {
+      padding: vars.$content-padding-mobile;
+    }
+
+    &__title {
+      font-size: 1.5rem;
+    }
+
+    &__main {
+      padding: vars.$content-padding-mobile;
+    }
+
+    &__actions {
+      gap: 0.5rem;
+    }
+
+    &__menu-btn {
+      padding: 0.5rem;
+      min-width: 40px;
+      min-height: 40px;
+    }
+  }
+}
+
+// Dark Mode Support
+@media (prefers-color-scheme: dark) {
+  .app {
+    &__header {
+      background: var(--surface-card);
+      border-bottom-color: var(--primary-400);
+    }
+  }
+}
+
+// Print Styles
+@media print {
+  .app {
+    &__header {
+      position: static;
+      box-shadow: none;
+      border-bottom: 1px solid #ccc;
+    }
+
+    &__actions {
+      display: none;
+    }
+
+    &__content {
+      margin-left: 0 !important;
+    }
+  }
+}
