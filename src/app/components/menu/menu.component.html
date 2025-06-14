@@ -1,37 +1,41 @@
-<!-- Menu Toggle Button -->
-<button
-  pButton
-  type="button"
-  [icon]="toggleIcon"
-  class="menu__toggle"
-  [class.menu__toggle--active]="isVisible"
-  [attr.aria-label]="isVisible ? 'Fechar menu' : 'Abrir menu'"
-  [attr.aria-expanded]="isVisible"
+<!-- Toggle Menu Button -->
+<p-button
   (click)="toggleMenu()"
-></button>
-
-<!-- Sidebar Menu -->
-<p-sidebar
-  [(visible)]="isVisible"
-  position="left"
-  [modal]="modalOnMobile"
-  [dismissible]="true"
-  styleClass="menu__sidebar"
-  [showCloseIcon]="false"
-  (onHide)="onMenuHide()"
+  icon="pi pi-bars"
+  severity="secondary"
+  [text]="true"
+  [rounded]="true"
+  size="large"
+  class="menu__toggle"
 >
-  <!-- Menu Header -->
-  <header class="menu__header" *ngIf="menuTitle">
-    <h3 class="menu__title">{{ menuTitle }}</h3>
-  </header>
+</p-button>
 
-  <!-- Menu Items -->
-  <nav class="menu__nav" role="navigation" aria-label="Menu principal">
-    <p-menu [model]="primeMenuItems" styleClass="menu__list"> </p-menu>
-  </nav>
-
-  <!-- Menu Footer -->
-  <footer class="menu__footer" *ngIf="showFooter">
-    <ng-content select="[slot=footer]"></ng-content>
-  </footer>
-</p-sidebar>
+<!-- Drawer Menu -->
+<p-drawer
+  [(visible)]="visible"
+  [position]="position"
+  [modal]="true"
+  [dismissible]="true"
+  styleClass="menu__drawer"
+>
+  <!-- Menu Content -->
+  <div class="menu__content">
+    <ul class="menu__list">
+      @for (item of items; track item.label) {
+      <li class="menu__item">
+        <a
+          [routerLink]="item.route"
+          class="menu__link"
+          (click)="closeMenu()"
+          routerLinkActive="menu__link--active"
+        >
+          @if (item.icon) {
+          <i [class]="'pi ' + item.icon" class="menu__icon"></i>
+          }
+          <span class="menu__label">{{ item.label }}</span>
+        </a>
+      </li>
+      }
+    </ul>
+  </div>
+</p-drawer>

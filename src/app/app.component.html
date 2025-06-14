@@ -1,44 +1,13 @@
-<div class="app">
-  <!-- Menu Component -->
-  <app-menu
-    #menuComponent
-    class="app__menu"
-    [menuItems]="menuItems"
-    [menuTitle]="menuTitle"
-    [showFooter]="true"
-    [autoCloseOnMobile]="true"
-    (menuToggled)="onMenuToggled($event)"
-    (itemClicked)="onMenuItemClicked($event)"
-    (menuClosed)="onMenuClosed()"
-  >
-    <!-- Menu Footer Content -->
-    <div slot="footer" class="app__menu-footer">
-      <p class="app__version">v1.0.0</p>
-      <p class="app__copyright">© 2024 My App</p>
-    </div>
-  </app-menu>
+<!-- Menu Component -->
+<app-menu
+  [config]="menuConfig"
+  [items]="menuItems"
+  [position]="menuPosition"
+></app-menu>
 
-  <!-- Main Content Area -->
-  <div class="app__content" [class.app__content--menu-open]="isMenuOpen">
-    <!-- Header -->
-    <header class="app__header">
-      <h1 class="app__title">{{ currentPageTitle }}</h1>
-      <div class="app__actions">
-        <button
-          class="app__menu-btn"
-          type="button"
-          title="Toggle Menu"
-          [attr.aria-label]="isMenuOpen ? 'Fechar menu' : 'Abrir menu'"
-          (click)="toggleMenuProgrammatically()"
-        >
-          <i class="pi pi-bars app__menu-btn-icon" aria-hidden="true"></i>
-        </button>
-      </div>
-    </header>
-
-    <!-- Main Content -->
-    <main class="app__main" role="main">
-      <router-outlet></router-outlet>
-    </main>
+<!-- Main Content Area -->
+<main class="app__main">
+  <div class="app__content">
+    <router-outlet></router-outlet>
   </div>
-</div>
+</main>
