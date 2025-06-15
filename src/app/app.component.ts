@@ -22,12 +22,12 @@ export class AppComponent {
     {
       label: 'Diário',
       route: '/diary',
-      icon: 'pi-users',
+      icon: 'pi-book',
     },
     {
       label: 'Galeria',
       route: '/gallery',
-      icon: 'pi-book',
+      icon: 'pi-image',
     },
   ];
 
