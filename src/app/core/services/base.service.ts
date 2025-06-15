@@ -12,101 +12,376 @@ import { IApiError, IApiResponse, IHttpOptions, IRequestOptions, PaginationParam
 // Environment
 import { environment } from '../../../environments/environment';
 
+/**
+ * Base service class providing common HTTP operations with retry logic,
+ * error handling, and standardized response format.
+ *
+ * @template T - The main entity type this service handles
+ *
+ * @example
+ * ```typescript
+ * interface IUser {
+ *   id: number;
+ *   name: string;
+ *   email: string;
+ * }
+ *
+ * @Injectable()
+ * export class UserService extends BaseService<IUser> {
+ *   constructor(http: HttpClient) {
+ *     super(http, 'users');
+ *   }
+ *
+ *   // Now you have all CRUD methods typed automatically!
+ *   // getAll(), getById(), create(), update(), delete(), etc.
+ * }
+ * ```
+ */
 @Injectable({
   providedIn: 'root'
 })
-export class BaseService {
+export class BaseService<T = unknown> {
+  /** Base URL for all API requests */
   protected readonly baseUrl = environment.apiUrl;
+
+  /** Default timeout for HTTP requests in milliseconds */
   protected readonly timeout = environment.apiTimeout;
+
+  /** Maximum number of retry attempts for failed requests */
   protected readonly retryAttempts = environment.retryAttempts;
+
+  /** Base delay between retry attempts in milliseconds */
   protected readonly retryDelay = environment.retryDelay;
 
-  constructor(protected http: HttpClient) {}
+  /**
+   * Creates an instance of BaseService.
+   *
+   * @param http - Angular HttpClient for making HTTP requests
+   * @param endpoint - The base endpoint for this service (e.g., 'users', 'products')
+   */
+  constructor(
+    protected http: HttpClient,
+    protected endpoint?: string
+  ) {}
 
-  protected get<T>(
-    endpoint: string,
+  /**
+   * Performs a GET HTTP request with automatic retry for network errors.
+   *
+   * @template R - The expected response data type (defaults to T)
+   * @param endpointPath - The API endpoint path (relative to baseUrl)
+   * @param options - Optional request configuration
+   * @returns Observable of the API response
+   *
+   * @example
+   * ```typescript
+   * this.get<User[]>('users', { params: { page: 1 } })
+   * this.get('users/1') // Returns Observable<IApiResponse<T>>
+   * ```
+   */
+  protected get<R = T>(
+    endpointPath?: string,
     options?: IRequestOptions
-  ): Observable<IApiResponse<T>> {
-    const url = this._buildUrl(endpoint);
+  ): Observable<IApiResponse<R>> {
+    const url = this._buildUrl(endpointPath);
     const httpOptions = this._buildHttpOptions(options);
 
     return this._executeWithRetry(() =>
-      this.http.get<IApiResponse<T>>(url, httpOptions)
+      this.http.get<IApiResponse<R>>(url, httpOptions)
     );
   }
 
   /**
-   * Realiza requisição POST
+   * Performs a POST HTTP request.
+   *
+   * @template R - The expected response data type (defaults to T)
+   * @param body - The request payload
+   * @param endpointPath - Optional API endpoint path (relative to baseUrl)
+   * @param options - Optional request configuration
+   * @returns Observable of the API response
+   *
+   * @example
+   * ```typescript
+   * this.post({ name: 'John', email: 'john@example.com' })
+   * this.post(userData, 'users/bulk')
+   * ```
    */
-  protected post<T>(
-    endpoint: string,
+  protected post<R = T>(
     body: unknown,
+    endpointPath?: string,
     options?: IRequestOptions
-  ): Observable<IApiResponse<T>> {
-    const url = this._buildUrl(endpoint);
+  ): Observable<IApiResponse<R>> {
+    const url = this._buildUrl(endpointPath);
     const httpOptions = this._buildHttpOptions(options);
 
-    return this.http.post<IApiResponse<T>>(url, body, httpOptions).pipe(
+    return this.http.post<IApiResponse<R>>(url, body, httpOptions).pipe(
       catchError(this._handleError.bind(this))
     );
   }
 
   /**
-   * Realiza requisição PUT
+   * Performs a PUT HTTP request.
+   *
+   * @template R - The expected response data type (defaults to T)
+   * @param body - The request payload
+   * @param endpointPath - Optional API endpoint path (relative to baseUrl)
+   * @param options - Optional request configuration
+   * @returns Observable of the API response
+   *
+   * @example
+   * ```typescript
+   * this.put({ name: 'John Updated' }, '1')
+   * this.put(userData, 'users/1')
+   * ```
    */
-  protected put<T>(
-    endpoint: string,
+  protected put<R = T>(
     body: unknown,
+    endpointPath?: string,
     options?: IRequestOptions
-  ): Observable<IApiResponse<T>> {
-    const url = this._buildUrl(endpoint);
+  ): Observable<IApiResponse<R>> {
+    const url = this._buildUrl(endpointPath);
     const httpOptions = this._buildHttpOptions(options);
 
-    return this.http.put<IApiResponse<T>>(url, body, httpOptions).pipe(
+    return this.http.put<IApiResponse<R>>(url, body, httpOptions).pipe(
       catchError(this._handleError.bind(this))
     );
   }
 
   /**
-   * Realiza requisição PATCH
+   * Performs a PATCH HTTP request.
+   *
+   * @template R - The expected response data type (defaults to T)
+   * @param body - The request payload (partial update)
+   * @param endpointPath - Optional API endpoint path (relative to baseUrl)
+   * @param options - Optional request configuration
+   * @returns Observable of the API response
+   *
+   * @example
+   * ```typescript
+   * this.patch({ name: 'John' }, '1')
+   * this.patch(partialData, 'users/1')
+   * ```
    */
-  protected patch<T>(
-    endpoint: string,
+  protected patch<R = T>(
     body: unknown,
+    endpointPath?: string,
     options?: IRequestOptions
-  ): Observable<IApiResponse<T>> {
-    const url = this._buildUrl(endpoint);
+  ): Observable<IApiResponse<R>> {
+    const url = this._buildUrl(endpointPath);
     const httpOptions = this._buildHttpOptions(options);
 
-    return this.http.patch<IApiResponse<T>>(url, body, httpOptions).pipe(
+    return this.http.patch<IApiResponse<R>>(url, body, httpOptions).pipe(
       catchError(this._handleError.bind(this))
     );
   }
 
   /**
-   * Realiza requisição DELETE
+   * Performs a DELETE HTTP request with automatic retry for network errors.
+   *
+   * @template R - The expected response data type (defaults to void)
+   * @param endpointPath - Optional API endpoint path (relative to baseUrl)
+   * @param options - Optional request configuration
+   * @returns Observable of the API response
+   *
+   * @example
+   * ```typescript
+   * this.delete('1')
+   * this.delete('users/1')
+   * ```
    */
-  protected delete<T>(
-    endpoint: string,
+  protected delete<R = void>(
+    endpointPath?: string,
     options?: IRequestOptions
-  ): Observable<IApiResponse<T>> {
-    const url = this._buildUrl(endpoint);
+  ): Observable<IApiResponse<R>> {
+    const url = this._buildUrl(endpointPath);
     const httpOptions = this._buildHttpOptions(options);
 
     return this._executeWithRetry(() =>
-      this.http.delete<IApiResponse<T>>(url, httpOptions)
+      this.http.delete<IApiResponse<R>>(url, httpOptions)
     );
   }
 
+  // ========== CRUD CONVENIENCE METHODS ==========
+
   /**
-   * Constrói a URL completa
+   * Gets all entities with optional pagination.
+   *
+   * @param pagination - Optional pagination parameters
+   * @param options - Optional request configuration
+   * @returns Observable of paginated entities
+   *
+   * @example
+   * ```typescript
+   * this.getAll({ page: 1, limit: 10 })
+   * ```
    */
-  private _buildUrl(endpoint: string): string {
-    return `${this.baseUrl}/${endpoint.replace(/^\//, '')}`;
+  public getAll(
+    pagination?: PaginationParams,
+    options?: IRequestOptions
+  ): Observable<IApiResponse<T[]>> {
+    const params = this.buildPaginationParams(pagination);
+    const requestOptions = { ...options, params: { ...options?.params, ...params } };
+
+    return this.get<T[]>(undefined, requestOptions);
   }
 
   /**
-   * Constrói as opções HTTP
+   * Gets a single entity by ID.
+   *
+   * @param id - The entity ID
+   * @param options - Optional request configuration
+   * @returns Observable of the entity
+   *
+   * @example
+   * ```typescript
+   * this.getById(1)
+   * this.getById('user-123')
+   * ```
+   */
+  public getById(
+    id: string | number,
+    options?: IRequestOptions
+  ): Observable<IApiResponse<T>> {
+    return this.get<T>(id.toString(), options);
+  }
+
+  /**
+   * Creates a new entity.
+   *
+   * @param data - The entity data to create
+   * @param options - Optional request configuration
+   * @returns Observable of the created entity
+   *
+   * @example
+   * ```typescript
+   * this.create({ name: 'John', email: 'john@example.com' })
+   * ```
+   */
+  public create(
+    data: Partial<T>,
+    options?: IRequestOptions
+  ): Observable<IApiResponse<T>> {
+    return this.post<T>(data, undefined, options);
+  }
+
+  /**
+   * Updates an existing entity (full update).
+   *
+   * @param id - The entity ID
+   * @param data - The complete entity data
+   * @param options - Optional request configuration
+   * @returns Observable of the updated entity
+   *
+   * @example
+   * ```typescript
+   * this.update(1, { name: 'John Updated', email: 'john.new@example.com' })
+   * ```
+   */
+  public update(
+    id: string | number,
+    data: Partial<T>,
+    options?: IRequestOptions
+  ): Observable<IApiResponse<T>> {
+    return this.put<T>(data, id.toString(), options);
+  }
+
+  /**
+   * Partially updates an existing entity.
+   *
+   * @param id - The entity ID
+   * @param data - The partial entity data
+   * @param options - Optional request configuration
+   * @returns Observable of the updated entity
+   *
+   * @example
+   * ```typescript
+   * this.partialUpdate(1, { name: 'John' })
+   * ```
+   */
+  public partialUpdate(
+    id: string | number,
+    data: Partial<T>,
+    options?: IRequestOptions
+  ): Observable<IApiResponse<T>> {
+    return this.patch<T>(data, id.toString(), options);
+  }
+
+  /**
+   * Deletes an entity by ID.
+   *
+   * @param id - The entity ID
+   * @param options - Optional request configuration
+   * @returns Observable of the deletion result
+   *
+   * @example
+   * ```typescript
+   * this.remove(1)
+   * this.remove('user-123')
+   * ```
+   */
+  public remove(
+    id: string | number,
+    options?: IRequestOptions
+  ): Observable<IApiResponse<void>> {
+    return this.delete<void>(id.toString(), options);
+  }
+
+  /**
+   * Searches entities with filters and pagination.
+   *
+   * @param filters - Search filters
+   * @param pagination - Optional pagination parameters
+   * @param options - Optional request configuration
+   * @returns Observable of filtered entities
+   *
+   * @example
+   * ```typescript
+   * this.search({ name: 'John' }, { page: 1, limit: 10 })
+   * ```
+   */
+  public search(
+    filters: Record<string, unknown>,
+    pagination?: PaginationParams,
+    options?: IRequestOptions
+  ): Observable<IApiResponse<T[]>> {
+    const params = {
+      ...this.buildPaginationParams(pagination),
+      ...filters
+    };
+
+    const requestOptions = { ...options, params: { ...options?.params, ...params } };
+
+    return this.get<T[]>('search', requestOptions);
+  }
+
+  // ========== UTILITY METHODS ==========
+
+  /**
+   * Builds the complete URL by combining base URL, endpoint, and path.
+   *
+   * @param path - Optional additional path
+   * @returns The complete URL
+   * @private
+   */
+  private _buildUrl(path?: string): string {
+    const parts = [this.baseUrl];
+
+    if (this.endpoint) {
+      parts.push(this.endpoint);
+    }
+
+    if (path) {
+      parts.push(path.replace(/^\//, ''));
+    }
+
+    return parts.join('/');
+  }
+
+  /**
+   * Builds HTTP options including headers and query parameters.
+   *
+   * @param options - Optional request configuration
+   * @returns HTTP options object
+   * @private
    */
   private _buildHttpOptions(options?: IRequestOptions): IHttpOptions {
     let headers = new HttpHeaders({
@@ -141,7 +416,16 @@ export class BaseService {
   }
 
   /**
-   * Constrói parâmetros de paginação
+   * Builds pagination parameters from pagination options.
+   *
+   * @param pagination - Optional pagination configuration
+   * @returns Record of pagination parameters
+   *
+   * @example
+   * ```typescript
+   * const params = this.buildPaginationParams({ page: 1, limit: 10 });
+   * // Returns: { page: 1, limit: 10 }
+   * ```
    */
   protected buildPaginationParams(pagination?: PaginationParams): Record<string, string | number> {
     const params: Record<string, string | number> = {};
@@ -155,12 +439,19 @@ export class BaseService {
   }
 
   /**
-   * Executa requisição com retry usando recursão
+   * Executes HTTP request with automatic retry logic using exponential backoff.
+   * Only retries on network errors (status 0) or server errors (5xx).
+   *
+   * @template R - The expected response type
+   * @param requestFn - Function that returns the HTTP request observable
+   * @param attempt - Current attempt number (used for recursion)
+   * @returns Observable of the HTTP response
+   * @private
    */
-  private _executeWithRetry<T>(
-    requestFn: () => Observable<T>,
+  private _executeWithRetry<R>(
+    requestFn: () => Observable<R>,
     attempt: number = 0
-  ): Observable<T> {
+  ): Observable<R> {
     return requestFn().pipe(
       catchError((error: HttpErrorResponse) => {
         if (this._shouldRetry(error, attempt)) {
@@ -177,39 +468,52 @@ export class BaseService {
   }
 
   /**
-   * Verifica se deve tentar novamente
+   * Determines if a request should be retried based on error type and attempt count.
+   *
+   * @param error - The HTTP error response
+   * @param attempt - Current attempt number
+   * @returns True if request should be retried
+   * @private
    */
   private _shouldRetry(error: HttpErrorResponse, attempt: number): boolean {
     if (attempt >= this.retryAttempts) {
       return false;
     }
 
-    // Retry apenas para erros de rede (status 0) ou 5xx
+    // Retry only for network errors (status 0) or 5xx server errors
     return error.status === 0 || (error.status >= 500 && error.status < 600);
   }
 
   /**
-   * Calcula o delay para retry com backoff exponencial
+   * Calculates retry delay using exponential backoff strategy.
+   *
+   * @param attempt - Current attempt number
+   * @returns Delay in milliseconds
+   * @private
    */
   private _calculateRetryDelay(attempt: number): number {
     return this.retryDelay * Math.pow(2, attempt);
   }
 
   /**
-   * Manipula erros HTTP
+   * Handles HTTP errors and transforms them into standardized API errors.
+   *
+   * @param error - The HTTP error response
+   * @returns Observable that throws the standardized error
+   * @private
    */
   private _handleError(error: HttpErrorResponse): Observable<never> {
     let apiError: IApiError;
 
     if (error.error instanceof ErrorEvent) {
-      // Erro do lado do cliente
+      // Client-side error
       apiError = {
-        message: 'Erro de conexão. Verifique sua internet.',
+        message: 'Connection error. Please check your internet connection.',
         status: 0,
         error: error.error.message
       };
     } else {
-      // Erro do lado do servidor
+      // Server-side error
       const errorMessage = this._extractErrorMessage(error);
       apiError = {
         message: errorMessage,
@@ -223,7 +527,11 @@ export class BaseService {
   }
 
   /**
-   * Extrai mensagem de erro do response
+   * Extracts error message from HTTP error response.
+   *
+   * @param error - The HTTP error response
+   * @returns Extracted error message
+   * @private
    */
   private _extractErrorMessage(error: HttpErrorResponse): string {
     if (error.error && typeof error.error === 'object') {
@@ -242,41 +550,60 @@ export class BaseService {
   }
 
   /**
-   * Retorna mensagem de erro padrão baseada no status
+   * Returns default error message based on HTTP status code.
+   *
+   * @param status - HTTP status code
+   * @returns Default error message
+   * @private
    */
   private _getDefaultErrorMessage(status: number): string {
     const errorMessages: Record<number, string> = {
-      400: 'Requisição inválida',
-      401: 'Não autorizado',
-      403: 'Acesso negado',
-      404: 'Recurso não encontrado',
-      409: 'Conflito de dados',
-      422: 'Dados inválidos',
-      500: 'Erro interno do servidor',
-      502: 'Servidor indisponível',
-      503: 'Serviço temporariamente indisponível'
+      400: 'Bad Request',
+      401: 'Unauthorized',
+      403: 'Forbidden',
+      404: 'Not Found',
+      409: 'Conflict',
+      422: 'Unprocessable Entity',
+      500: 'Internal Server Error',
+      502: 'Bad Gateway',
+      503: 'Service Unavailable'
     };
 
-    return errorMessages[status] || 'Erro desconhecido';
+    return errorMessages[status] || 'Unknown Error';
   }
 
   /**
-   * Log de erros
+   * Logs error information in development environment.
+   *
+   * @param error - The API error to log
+   * @private
    */
   private _logError(error: IApiError): void {
     if (!environment.production) {
-      console.error('Erro na requisição:', error);
+      console.error('HTTP Request Error:', error);
     }
   }
 
   /**
-   * Método utilitário para upload de arquivos
+   * Uploads a file with optional additional form data.
+   *
+   * @template R - The expected response data type
+   * @param file - The file to upload
+   * @param additionalData - Optional additional form data
+   * @param endpointPath - Optional API endpoint path
+   * @param options - Optional request configuration
+   * @returns Observable of the API response
+   *
+   * @example
+   * ```typescript
+   * this.uploadFile<{url: string}>(file, { category: 'avatar' }, 'upload')
+   * ```
    */
-  protected uploadFile<T>(
-    endpoint: string,
+  protected uploadFile<R = { url: string }>(
     file: File,
-    additionalData?: Record<string, string | number | boolean>
-  ): Observable<IApiResponse<T>> {
+    additionalData?: Record<string, string | number | boolean>,
+    endpointPath?: string,
+  ): Observable<IApiResponse<R>> {
     const formData = new FormData();
     formData.append('file', file);
 
@@ -286,22 +613,32 @@ export class BaseService {
       });
     }
 
-    const url = this._buildUrl(endpoint);
+    const url = this._buildUrl(endpointPath ?? 'upload');
 
-    return this.http.post<IApiResponse<T>>(url, formData).pipe(
+    return this.http.post<IApiResponse<R>>(url, formData).pipe(
       catchError(this._handleError.bind(this))
     );
   }
 
   /**
-   * Método utilitário para download de arquivos
+   * Downloads a file from the server and triggers browser download.
+   *
+   * @param filename - The filename for the downloaded file
+   * @param endpointPath - Optional API endpoint path
+   * @param options - Optional request configuration
+   * @returns Observable of the downloaded blob
+   *
+   * @example
+   * ```typescript
+   * this.downloadFile('users-report.pdf', 'reports')
+   * ```
    */
   protected downloadFile(
-    endpoint: string,
     filename: string,
+    endpointPath?: string,
     options?: IRequestOptions
   ): Observable<Blob> {
-    const url = this._buildUrl(endpoint);
+    const url = this._buildUrl(endpointPath ?? 'download');
     const httpOptions = {
       ...this._buildHttpOptions(options),
       responseType: 'blob' as const
@@ -316,7 +653,11 @@ export class BaseService {
   }
 
   /**
-   * Executa o download do blob
+   * Triggers browser download of a blob with specified filename.
+   *
+   * @param blob - The blob data to download
+   * @param filename - The filename for the download
+   * @private
    */
   private _downloadBlob(blob: Blob, filename: string): void {
     const downloadUrl = window.URL.createObjectURL(blob);
