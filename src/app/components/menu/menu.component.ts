@@ -5,6 +5,7 @@ import { RouterModule } from '@angular/router';
 
 // PrimeNG
 import { ButtonModule } from 'primeng/button';
+import { DividerModule } from 'primeng/divider';
 import { DrawerModule } from 'primeng/drawer';
 import { EnumMenuPosition } from './models/enums';
 
@@ -18,7 +19,8 @@ import { IMenuItem } from './models/interfaces';
     CommonModule,
     RouterModule,
     ButtonModule,
-    DrawerModule
+    DrawerModule,
+    DividerModule
   ],
   templateUrl: './menu.component.html',
   styleUrl: './menu.component.scss',

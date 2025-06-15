@@ -50,7 +50,8 @@
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      padding: calc(var(--spacing-unit, 0.25rem) * 2) calc(var(--spacing-unit, 0.25rem) * 2);
+      padding: calc(var(--spacing-unit, 0.25rem) * 2)
+        calc(var(--spacing-unit, 0.25rem) * 2);
       text-decoration: none;
       font-family: var(--font-family);
       color: var(--text-color);
@@ -71,6 +72,18 @@
           color: var(--highlight-text-color);
         }
       }
+    }
+  }
+
+  &__footer {
+    &-divider {
+      margin: 0;
+    }
+
+    &-content {
+      display: flex;
+      justify-content: flex-end;
+      padding: calc(var(--spacing-unit, 0.25rem) * 6) 0;
     }
   }
 }

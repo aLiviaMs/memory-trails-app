@@ -17,6 +17,7 @@
   [dismissible]="true"
   styleClass="menu__drawer"
 >
+  <!-- Menu Header -->
   <ng-template pTemplate="header">
     <div class="menu__header-custom-content">
       <span class="menu__header-logo-area">
@@ -45,4 +46,17 @@
       }
     </ul>
   </div>
+
+  <!-- Menu Footer -->
+  <ng-template pTemplate="footer">
+    <div class="menu__footer">
+      <p-divider class="menu__footer-divider"></p-divider>
+      <div class="menu__footer-content">
+        <div class="menu__footer-theme-switch">
+          <p-button icon="pi pi-cog"></p-button>
+          <!--/* TODO: need to create */-->
+        </div>
+      </div>
+    </div>
+  </ng-template>
 </p-drawer>
