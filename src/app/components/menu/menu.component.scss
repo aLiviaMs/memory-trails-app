@@ -1,3 +1,76 @@
-.menu__toggle {
-  cursor: pointer;
+.menu {
+  &__toggle {
+    cursor: pointer;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(var(--spacing-unit, 0.25rem) * 4)
+      calc(var(--spacing-unit, 0.25rem) * 6);
+    flex-shrink: 0;
+    width: 100%;
+
+    &-logo-area {
+      display: inline-flex;
+      align-items: center;
+      gap: calc(var(--spacing-unit, 0.25rem) * 2);
+    }
+
+    &-icon {
+      display: block;
+      height: var(--menu-header-icon-height, 30px);
+      width: auto;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    &-text {
+      font-weight: 600;
+      font-size: 1.5rem;
+      line-height: 2rem;
+      color: var(--text-color-primary, var(--p-primary-color));
+    }
+  }
+
+  &__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+
+    &__route {
+      gap: 0.25rem;
+    }
+
+    &__link {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: calc(var(--spacing-unit, 0.25rem) * 2) calc(var(--spacing-unit, 0.25rem) * 2);
+      text-decoration: none;
+      font-family: var(--font-family);
+      color: var(--text-color);
+      border-radius: 0.5rem;
+      transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+      cursor: pointer;
+
+      &:hover {
+        background-color: var(--p-rose-600);
+        color: var(--text-color);
+      }
+
+      &--active {
+        background-color: var(--highlight-bg);
+        color: var(--p-highlight-color);
+
+        .menu__icon {
+          color: var(--highlight-text-color);
+        }
+      }
+    }
+  }
 }

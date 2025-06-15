@@ -7,60 +7,30 @@ import { MenuComponent } from './components/menu/menu.component';
 
 // Models
 import { EnumMenuPosition } from './components/menu/models/enums';
-import { IMenuConfig, IMenuItem } from './components/menu/models/interfaces';
+import { IMenuItem } from './components/menu/models/interfaces';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [
-    RouterOutlet,
-    MenuComponent
-  ],
+  imports: [RouterOutlet, MenuComponent],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+  styleUrl: './app.component.scss',
 })
 export class AppComponent {
-  title = 'Minha Aplicação';
-
-  // Configuração do menu
-  menuConfig: IMenuConfig = {
-    title: 'Navegação Principal'
-  };
-
-  // Itens do menu
-  menuItems: IMenuItem[] = [
+  /** Menu Props */
+  public menuRoutes: IMenuItem[] = [
     {
-      label: 'Dashboard',
-      route: '/dashboard',
-      icon: 'pi-chart-line'
+      label: 'Diário',
+      route: '/diary',
+      icon: 'pi-users',
     },
     {
-      label: 'Usuários',
-      route: '/usuarios',
-      icon: 'pi-users'
+      label: 'Galeria',
+      route: '/gallery',
+      icon: 'pi-book',
     },
-    {
-      label: 'Produtos',
-      route: '/produtos',
-      icon: 'pi-box'
-    },
-    {
-      label: 'Relatórios',
-      route: '/relatorios',
-      icon: 'pi-file-pdf'
-    },
-    {
-      label: 'Configurações',
-      route: '/configuracoes',
-      icon: 'pi-cog'
-    },
-    {
-      label: 'Perfil',
-      route: '/perfil',
-      icon: 'pi-user'
-    }
   ];
 
-  // Posição do menu
-  menuPosition: EnumMenuPosition = EnumMenuPosition.LEFT;
+  /** Position of the menu */
+  public menuPosition: EnumMenuPosition = EnumMenuPosition.LEFT;
 }
