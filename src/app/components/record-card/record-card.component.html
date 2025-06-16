@@ -1,0 +1,18 @@
+@if (content) {
+<p-card class="card" [header]="datePublished">
+  <p class="card__description">
+    {{ content.description }}
+  </p>
+  <p-button
+    class="card__favorite-button"
+    severity="help"
+    [rounded]="true"
+    [outlined]="!isFavorite"
+    [icon]="favoriteIcon"
+    (click)="toggleFavorite()"
+    [label]="isFavorite ? 'Desfavoritar' : 'Favoritar'"
+  />
+</p-card>
+} @else {
+<p-skeleton height="25dvh" class="mb-2"></p-skeleton>
+}
