@@ -5,8 +5,13 @@
 .app {
   // Element: main container
   &__main {
-    min-height: 100vh;
+    min-height: 100dvh;
+    flex: 1;
     background-color: var(--surface-ground);
+        // 🎯 ADICIONE ESTAS LINHAS:
+    display: flex;
+    flex-direction: column; // ou row, dependendo do layout do menu
+
     @include mx.transition(margin-left, vars.$transition-base);
 
     @include bp.respond-to(desktop) {
@@ -17,11 +22,10 @@
   // Element: content area
   &__content {
     padding: vars.$content-padding;
-    margin: 0 auto;
+    flex: 1;
 
     @include bp.respond-to(mobile) {
       padding: vars.$content-padding-mobile;
-      margin-top: 4rem;
     }
 
     @include bp.respond-to(tablet) {

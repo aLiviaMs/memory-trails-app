@@ -41,7 +41,7 @@ export class RecordCardComponent {
    * Event emitted when the favorite status is toggled.
    * Emits the new favorite state (true/false).
    */
-  @Output() public favoriteToggled: EventEmitter<boolean> = new EventEmitter<boolean>();
+  @Output() public favoriteToggled: EventEmitter<IRecord> = new EventEmitter<IRecord>();
 
   /**
    * Gets the current favorite status of the record.
@@ -96,6 +96,6 @@ export class RecordCardComponent {
    */
   public toggleFavorite(): void {
     this._isFavorite = !this.isFavorite;
-    this.favoriteToggled.emit(this.isFavorite);
+    this.favoriteToggled.emit(this.content);
   }
 }

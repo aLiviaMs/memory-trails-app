@@ -1,8 +1,7 @@
-<!-- Menu Component -->
-<app-menu [routes]="menuRoutes" [position]="menuPosition"></app-menu>
-
 <!-- Main Content Area -->
 <main class="app__main">
+  <app-menu [routes]="menuRoutes" [position]="menuPosition"></app-menu>
+
   <div class="app__content">
     <router-outlet></router-outlet>
   </div>
