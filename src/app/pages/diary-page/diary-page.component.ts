@@ -1,13 +1,16 @@
 // Angular
-import { Component } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { finalize, Subject, takeUntil } from 'rxjs';
 
 // PrimeNg
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { ToggleSwitchChangeEvent, ToggleSwitchModule } from 'primeng/toggleswitch';
 
 // Components
 import { RecordCardComponent } from '../../components/record-card/record-card.component';
-import { IRecord } from '../../core/services/records/models/interfaces';
+import { IRecord, IRecordPaginationParams } from '../../core/services/records/models/interfaces';
+import { RecordsService } from '../../core/services/records/records.service';
 
 /**
  * Component responsible for displaying a records listing page
@@ -25,17 +28,22 @@ import { IRecord } from '../../core/services/records/models/interfaces';
  */
 @Component({
   selector: 'app-diary-page',
-  imports: [RecordCardComponent, ToggleSwitchModule, FormsModule],
+  imports: [RecordCardComponent, ToggleSwitchModule, FormsModule, ProgressSpinnerModule],
   templateUrl: './diary-page.component.html',
   styleUrl: './diary-page.component.scss',
 })
-export class DiaryPageComponent {
+export class DiaryPageComponent implements OnInit, OnDestroy {
   /**
    * Controls whether to display only favorite records
    * @type {boolean}
    * @default false
    */
   public showOnlyFavorites: boolean = false;
+
+  /**
+   * Array containing all loaded records
+   */
+  public allRecords: IRecord[] = [];
 
   /**
    * Array containing filtered records based on the switch state
@@ -45,17 +53,59 @@ export class DiaryPageComponent {
   public filteredRecords: IRecord[] = [];
 
   /**
-   * Array containing all available records
-   * @type {IRecord[]}
-   * @default []
+   * Loading state for initial load and pagination
    */
-  private readonly _allRecords: IRecord[] = [];
+  public isLoading: boolean = false;
 
   /**
-   * @description Initializes the page data
+   * Loading state specifically for loading more items
+   */
+  public isLoadingMore: boolean = false;
+
+  /**
+   * Indicates if there are more records to load
+   */
+  public hasMoreRecords: boolean = true;
+
+  /**
+   * Current pagination parameters
+   */
+  private _paginationParams: IRecordPaginationParams = {
+    page: 1,
+    size: 10,
+    sortBy: 'datePublished' // ou outro campo de ordenação
+  };
+
+  /**
+   * Subject for handling component destruction
+   */
+  private readonly _destroy$ = new Subject<void>();
+
+  constructor(private readonly _recordService: RecordsService) {}
+
+  /**
+   * Initializes the component and loads initial data
    */
   public ngOnInit(): void {
-    this._updateFilteredRecords();
+    this._loadInitialRecords();
+  }
+
+  /**
+   * Cleanup subscriptions on component destruction
+   */
+  public ngOnDestroy(): void {
+    this._destroy$.next();
+    this._destroy$.complete();
+  }
+
+  /**
+   * Listens for scroll events to trigger infinite scroll
+   */
+  @HostListener('window:scroll', ['$event'])
+  public onScroll(): void {
+    if (this._shouldLoadMore()) {
+      this._loadMoreRecords();
+    }
   }
 
   /**
@@ -71,7 +121,7 @@ export class DiaryPageComponent {
    */
   public onFilterChange(event: ToggleSwitchChangeEvent): void {
     this.showOnlyFavorites = event.checked;
-    this._updateFilteredRecords();
+    this._resetAndReload();
   }
 
   /**
@@ -86,7 +136,7 @@ export class DiaryPageComponent {
    * @param {boolean} event.isFavorite - New favorite status
    */
   public onFavoriteChanged(currentRecord: IRecord): void {
-    const record = this._allRecords.find(
+    const record = this.allRecords.find(
       (record) => record.id === currentRecord.id
     );
 
@@ -94,6 +144,86 @@ export class DiaryPageComponent {
       record.isFavorite = currentRecord.isFavorite;
       this._updateFilteredRecords();
     }
+  }
+
+  /**
+   * Loads initial records
+   */
+  private _loadInitialRecords(): void {
+    this.isLoading = true;
+    this._paginationParams.page = 1;
+    this.allRecords = [];
+    this.hasMoreRecords = true;
+
+    this._fetchRecords()
+      .pipe(
+        takeUntil(this._destroy$),
+        finalize(() => this.isLoading = false)
+      )
+      .subscribe({
+        next: (response) => {
+          this.allRecords = response.data || [];
+          this._updateFilteredRecords();
+          this._checkIfHasMoreRecords(response.data?.length || 0);
+        },
+        error: (error) => {
+          console.error('Erro ao carregar registros:', error);
+          this.allRecords = [];
+          this._updateFilteredRecords();
+        }
+      });
+  }
+
+  /**
+   * Loads more records for infinite scroll
+   */
+  private _loadMoreRecords(): void {
+    if (this.isLoadingMore || !this.hasMoreRecords) {
+      return;
+    }
+
+    this.isLoadingMore = true;
+    this._paginationParams.page++;
+
+    this._fetchRecords()
+      .pipe(
+        takeUntil(this._destroy$),
+        finalize(() => this.isLoadingMore = false)
+      )
+      .subscribe({
+        next: (response) => {
+          const newRecords = response.data || [];
+          this.allRecords = [...this.allRecords, ...newRecords];
+          this._updateFilteredRecords();
+          this._checkIfHasMoreRecords(newRecords.length);
+        },
+        error: (error) => {
+          console.error('Erro ao carregar mais registros:', error);
+          // Reverte a página em caso de erro
+          this._paginationParams.page--;
+        }
+      });
+  }
+
+  /**
+   * Fetches records based on current filter state
+   */
+  private _fetchRecords() {
+    if (this.showOnlyFavorites) {
+      return this._recordService.getFavoriteRecords(this._paginationParams);
+    } else {
+      return this._recordService.getRecordsWithPagination(this._paginationParams);
+    }
+  }
+
+  /**
+   * Resets pagination and reloads data when filter changes
+   */
+  private _resetAndReload(): void {
+    this._paginationParams.page = 1;
+    this.allRecords = [];
+    this.hasMoreRecords = true;
+    this._loadInitialRecords();
   }
 
   /**
@@ -107,7 +237,32 @@ export class DiaryPageComponent {
    */
   private _updateFilteredRecords(): void {
     this.filteredRecords = this.showOnlyFavorites
-      ? this._allRecords.filter((record) => record.isFavorite)
-      : [...this._allRecords];
+      ? this.allRecords.filter((record) => record.isFavorite)
+      : [...this.allRecords];
+  }
+
+  /**
+   * Checks if there are more records to load
+   */
+  private _checkIfHasMoreRecords(loadedCount: number): void {
+    this.hasMoreRecords = loadedCount === this._paginationParams.size;
+  }
+
+  /**
+   * Determines if more records should be loaded based on scroll position
+   */
+  private _shouldLoadMore(): boolean {
+    if (this.isLoadingMore || !this.hasMoreRecords) {
+      return false;
+    }
+
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const windowHeight = window.innerHeight;
+    const documentHeight = document.documentElement.scrollHeight;
+
+    // Trigger when user is 200px from bottom
+    const threshold = 200;
+
+    return scrollTop + windowHeight >= documentHeight - threshold;
   }
 }

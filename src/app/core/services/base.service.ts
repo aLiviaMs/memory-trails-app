@@ -53,6 +53,8 @@ export class BaseService<T = unknown> {
   /** Base delay between retry attempts in milliseconds */
   protected readonly retryDelay = environment.retryDelay;
 
+  protected endpoint: string = '';
+
   /**
    * Creates an instance of BaseService.
    *
@@ -61,7 +63,6 @@ export class BaseService<T = unknown> {
    */
   constructor(
     protected http: HttpClient,
-    protected endpoint?: string
   ) {}
 
   /**

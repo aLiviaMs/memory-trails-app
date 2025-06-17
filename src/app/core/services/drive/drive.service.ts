@@ -1,4 +1,3 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { IApiResponse, IRequestOptions } from '../../../core/models/interfaces';
@@ -34,14 +33,7 @@ import {
   providedIn: 'root',
 })
 export class DriveService extends BaseService<IDriveFile> {
-  /**
-   * Creates an instance of DriveService.
-   *
-   * @param http - Angular HttpClient
-   */
-  constructor(http: HttpClient) {
-    super(http, 'drive');
-  }
+  protected override endpoint = 'drive';
 
   // ========== FILE OPERATIONS ==========
 

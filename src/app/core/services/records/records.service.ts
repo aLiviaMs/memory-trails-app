@@ -1,4 +1,3 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { IApiResponse, IRequestOptions } from '../../../core/models/interfaces';
@@ -6,7 +5,6 @@ import { BaseService } from '../../../core/services/base.service';
 import {
   IRecord,
   IRecordPaginationParams,
-  IRecordSearchFilters,
   IUpdateRecordDto
 } from './models/interfaces';
 
@@ -33,15 +31,7 @@ import {
   providedIn: 'root'
 })
 export class RecordsService extends BaseService<IRecord> {
-
-  /**
-   * Creates an instance of RecordsService.
-   *
-   * @param http - Angular HttpClient
-   */
-  constructor(http: HttpClient) {
-    super(http, 'records');
-  }
+  protected override endpoint = 'records';
 
   // ========== CUSTOM PAGINATION METHOD ==========
 
@@ -64,13 +54,19 @@ export class RecordsService extends BaseService<IRecord> {
    */
   getRecordsWithPagination(
     pagination: IRecordPaginationParams,
+    isFavorite?: boolean,
     options?: IRequestOptions
   ): Observable<IApiResponse<IRecord[]>> {
-    const params = {
+    const params: IRecordPaginationParams = {
       page: pagination.page,
       size: pagination.size,
       sortBy: pagination.sortBy
     };
+
+    // Adiciona o filtro de favorito apenas se fornecido
+    if (isFavorite !== undefined) {
+      params.isFavorite = isFavorite;
+    }
 
     const requestOptions = {
       ...options,
@@ -98,86 +94,15 @@ export class RecordsService extends BaseService<IRecord> {
     pagination?: IRecordPaginationParams,
     options?: IRequestOptions
   ): Observable<IApiResponse<IRecord[]>> {
-    const filters = { isFavorite: true };
-
-    if (pagination) {
-      return this.searchRecords(filters as IRecordSearchFilters, pagination, options);
-    }
-
-    return this.search(filters, undefined, options);
-  }
-
-  /**
-   * Gets records published within a date range.
-   *
-   * @param dateFrom - Start date (ISO string)
-   * @param dateTo - End date (ISO string)
-   * @param pagination - Optional pagination parameters
-   * @param options - Optional request configuration
-   * @returns Observable of filtered records
-   *
-   * @example
-   * ```typescript
-   * this.getRecordsByDateRange(
-   *   '2024-01-01T00:00:00Z',
-   *   '2024-12-31T23:59:59Z',
-   *   { page: 1, size: 10, sortBy: 'datePublished' }
-   * )
-   * ```
-   */
-  getRecordsByDateRange(
-    dateFrom: string,
-    dateTo: string,
-    pagination?: IRecordPaginationParams,
-    options?: IRequestOptions
-  ): Observable<IApiResponse<IRecord[]>> {
-    const filters = { dateFrom, dateTo };
-
-    if (pagination) {
-      return this.searchRecords(filters, pagination, options);
-    }
-
-    return this.search(filters, undefined, options);
-  }
-
-  /**
-   * Searches records with custom filters and pagination.
-   *
-   * @param filters - Search filters
-   * @param pagination - Optional records-specific pagination
-   * @param options - Optional request configuration
-   * @returns Observable of filtered records
-   *
-   * @example
-   * ```typescript
-   * this.searchRecords(
-   *   { title: 'Angular', isFavorite: true },
-   *   { page: 1, size: 10, sortBy: 'title' }
-   * )
-   * ```
-   */
-  searchRecords(
-    filters: IRecordSearchFilters,
-    pagination?: IRecordPaginationParams,
-    options?: IRequestOptions
-  ): Observable<IApiResponse<IRecord[]>> {
-    let params: Record<string, unknown> = { ...filters };
-
-    if (pagination) {
-      params = {
-        ...params,
-        page: pagination.page,
-        size: pagination.size,
-        sortBy: pagination.sortBy
-      };
-    }
-
-    const requestOptions = {
-      ...options,
-      params: { ...options?.params, ...params }
+    // Se não tem paginação, usa valores padrão
+    const paginationParams = pagination || {
+      page: 1,
+      size: 10,
+      sortBy: 'ASC' as const
     };
 
-    return this.get<IRecord[]>('search', requestOptions);
+    // Usa o método principal com filtro de favoritos
+    return this.getRecordsWithPagination(paginationParams, true, options);
   }
 
   /**
