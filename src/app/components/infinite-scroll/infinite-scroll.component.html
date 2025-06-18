@@ -1,0 +1,99 @@
+<div class="infinite-scroll" [class]="config.customClass">
+  <p-scroller
+    [items]="items"
+    [itemSize]="config.itemSize"
+    [buffer]="config.buffer"
+    [delay]="config.delay"
+    [loading]="state.loading"
+    [lazy]="true"
+    (onLazyLoad)="_onLazyLoad($event)"
+    styleClass="infinite-scroll__scroller"
+    [style]="{ width: '100%', height: config.containerHeight }"
+  >
+    <!-- Content -->
+    <ng-template pTemplate="content" let-items let-options="options">
+      <div
+        class="infinite-scroll__content"
+        [style.height.px]="options.contentSize"
+      >
+        @for (item of items; track _trackByFn($index, item); let i = $index) {
+        <div class="infinite-scroll__item" [style.height.px]="options.itemSize">
+          <ng-container
+            [ngTemplateOutlet]="itemTemplate"
+            [ngTemplateOutletContext]="{
+              $implicit: item,
+              index: i,
+              isLast: i === items.length - 1
+            }"
+          >
+          </ng-container>
+        </div>
+        }
+      </div>
+    </ng-template>
+
+    <!-- Skeleton loader -->
+    @if (config.showSkeleton) {
+    <ng-template pTemplate="loader" let-options="options">
+      <div class="infinite-scroll__loader" [style.height.px]="options.itemSize">
+        @if (skeletonTemplate) {
+        <ng-container
+          [ngTemplateOutlet]="skeletonTemplate"
+          [ngTemplateOutletContext]="{
+            itemSize: options.itemSize
+          }"
+        >
+        </ng-container>
+        } @else {
+        <div class="infinite-scroll__skeleton">
+          <p-skeleton
+            width="100%"
+            [height]="options.itemSize - 16 + 'px'"
+            class="infinite-scroll__skeleton-item"
+          >
+          </p-skeleton>
+        </div>
+        }
+      </div>
+    </ng-template>
+    }
+  </p-scroller>
+
+  <!-- Loading indicator -->
+  @if (state.loading && items.length > 0) {
+  <div class="infinite-scroll__loading">
+    <p-progressSpinner
+      styleClass="infinite-scroll__spinner"
+      strokeWidth="4"
+      animationDuration="1s"
+    >
+    </p-progressSpinner>
+    @if (loadingTemplate) {
+    <span class="infinite-scroll__loading-text">
+      <ng-container [ngTemplateOutlet]="loadingTemplate"></ng-container>
+    </span>
+    }
+  </div>
+  }
+
+  <!-- Empty State -->
+  @if (!state.loading && items.length === 0) {
+  <div class="infinite-scroll__empty">
+    @if (emptyTemplate) {
+    <ng-container [ngTemplateOutlet]="emptyTemplate"></ng-container>
+    } @else {
+    <div class="infinite-scroll__empty-content">
+      <i class="pi pi-inbox infinite-scroll__empty-icon"></i>
+      <p class="infinite-scroll__empty-text">Nenhum item encontrado</p>
+    </div>
+    }
+  </div>
+  }
+
+  <!-- End Template -->
+  @if (!state.hasMore && items.length > 0 && !state.loading && endTemplate) {
+  <div class="infinite-scroll__end">
+    <ng-container [ngTemplateOutlet]="endTemplate"></ng-container>
+  </div>
+  }
+</div>
