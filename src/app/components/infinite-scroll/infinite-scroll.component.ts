@@ -10,7 +10,7 @@ import {
   Output,
   SimpleChanges,
   TemplateRef,
-  TrackByFunction
+  TrackByFunction,
 } from '@angular/core';
 import { LazyLoadEvent } from 'primeng/api';
 import { Subject } from 'rxjs';
@@ -22,7 +22,7 @@ import {
 } from './models/interfaces';
 
 /**
- * Context para template de item
+ * Template context for each rendered item
  */
 interface IItemTemplateContext<T> {
   $implicit: T;
@@ -31,15 +31,15 @@ interface IItemTemplateContext<T> {
 }
 
 /**
- * Context para template de skeleton
+ * Template context for skeleton loader
  */
 interface ISkeletonTemplateContext {
   itemSize: number;
 }
 
 /**
- * Componente reutilizável de infinite scroll com PrimeNG
- * Compatível com Angular v19 usando nova sintaxe de control flow
+ * Reusable infinite scroll component using PrimeNG
+ * Compatible with Angular v19+ using the new control flow syntax.
  *
  * @example
  * ```html
@@ -62,93 +62,72 @@ interface ISkeletonTemplateContext {
   selector: 'app-infinite-scroll',
   templateUrl: './infinite-scroll.component.html',
   styleUrls: ['./infinite-scroll.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class InfiniteScrollComponent<T = unknown> implements OnInit, OnChanges, OnDestroy {
-  /**
-   * Array de itens a serem exibidos
-   */
+export class InfiniteScrollComponent<T = unknown>
+  implements OnInit, OnChanges, OnDestroy
+{
+  /** List of items to be rendered */
   @Input() items: T[] = [];
 
-  /**
-   * Configurações do infinite scroll
-   */
+  /** Infinite scroll configuration options */
   @Input() config: Partial<IInfiniteScrollConfig> = {};
 
-  /**
-   * Total de registros disponíveis na fonte de dados
-   */
+  /** Total number of available records in the data source */
   @Input() totalRecords = 0;
 
-  /**
-   * Indica se está carregando dados
-   */
+  /** Whether data is currently loading */
   @Input() loading = false;
 
-  /**
-   * Função de track by customizada para performance
-   */
+  /** Optional custom trackBy function for ngFor */
   @Input() trackBy?: TrackByFunction<T>;
 
-  /**
-   * Evento emitido quando mais dados precisam ser carregados
-   */
+  /** Event emitted when more data needs to be loaded */
   @Output() onLoadMore = new EventEmitter<IInfiniteScrollEvent>();
 
-  /**
-   * Template para renderizar cada item
-   */
-  @ContentChild('itemTemplate') itemTemplate?: TemplateRef<IItemTemplateContext<T>>;
+  /** Template for rendering each item */
+  @ContentChild('itemTemplate') itemTemplate?: TemplateRef<
+    IItemTemplateContext<T>
+  >;
 
-  /**
-   * Template customizado para skeleton loading
-   */
-  @ContentChild('skeletonTemplate') skeletonTemplate?: TemplateRef<ISkeletonTemplateContext>;
+  /** Optional skeleton loader template */
+  @ContentChild('skeletonTemplate')
+  skeletonTemplate?: TemplateRef<ISkeletonTemplateContext>;
 
-  /**
-   * Template customizado para estado de carregamento
-   */
+  /** Optional custom loading template */
   @ContentChild('loadingTemplate') loadingTemplate?: TemplateRef<void>;
 
-  /**
-   * Template customizado para estado vazio
-   */
+  /** Optional empty state template */
   @ContentChild('emptyTemplate') emptyTemplate?: TemplateRef<void>;
 
-  /**
-   * Template customizado para fim dos dados
-   */
+  /** Optional end-of-list template */
   @ContentChild('endTemplate') endTemplate?: TemplateRef<void>;
 
-  /** Configuração mesclada com valores padrão */
+  /** Merged configuration including defaults */
   public config$: Required<IInfiniteScrollConfig>;
 
-  /** Estado atual do infinite scroll */
+  /** Current scroll state (loading, pagination, etc.) */
   public state: IInfiniteScrollState = {
     loading: false,
     totalRecords: 0,
     hasMore: true,
-    currentPage: 1
+    currentPage: 1,
   };
 
-  /** Subject para cleanup de subscriptions */
+  /** Internal destroy Subject for cleaning up subscriptions */
   private readonly _destroy$ = new Subject<void>();
 
   constructor() {
     this.config$ = { ...DEFAULT_INFINITE_SCROLL_CONFIG };
   }
 
-  /**
-   * Inicializa o componente e mescla configurações
-   */
+  /** Initializes the component and merges config */
   ngOnInit(): void {
     this._mergeConfig();
     this._updateState();
   }
 
-  /**
-   * Detecta mudanças nos inputs e atualiza estado
-   */
+  /** Handles changes to input properties */
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['config']) {
       this._mergeConfig();
@@ -159,25 +138,21 @@ export class InfiniteScrollComponent<T = unknown> implements OnInit, OnChanges, 
     }
   }
 
-  /**
-   * Cleanup ao destruir o componente
-   */
+  /** Cleans up resources when component is destroyed */
   ngOnDestroy(): void {
     this._destroy$.next();
     this._destroy$.complete();
   }
 
   /**
-   * Função de track by padrão ou customizada
-   * Compatível com nova sintaxe @for do Angular v19
+   * Default or custom trackBy function
+   * Supports Angular v19 @for syntax
    */
   public _trackByFn: TrackByFunction<T> = (index: number, item: T): unknown => {
     return this.trackBy ? this.trackBy(index, item) : index;
   };
 
-  /**
-   * Handler para evento de lazy load do PrimeNG Scroller
-   */
+  /** Handles PrimeNG lazy load event */
   public _onLazyLoad(event: LazyLoadEvent): void {
     if (this.state.loading || !this.state.hasMore) {
       return;
@@ -186,83 +161,69 @@ export class InfiniteScrollComponent<T = unknown> implements OnInit, OnChanges, 
     const scrollEvent: IInfiniteScrollEvent = {
       first: event.first as number,
       rows: event.rows ?? this.config$.pageSize,
-      page: Math.floor((event.first as number) / (event.rows ?? this.config$.pageSize)) + 1
+      page:
+        Math.floor(
+          (event.first as number) / (event.rows ?? this.config$.pageSize)
+        ) + 1,
     };
 
     this._updateLoadingState(true);
     this.onLoadMore.emit(scrollEvent);
   }
 
-  /**
-   * Reseta o estado do infinite scroll
-   * Útil para quando os dados são filtrados ou resetados
-   */
+  /** Resets the internal scroll state (e.g. on filter reset) */
   public reset(): void {
     this.state.currentPage = 1;
     this.state.hasMore = true;
     this.state.loading = false;
   }
 
-  /**
-   * Atualiza configurações do infinite scroll
-   */
+  /** Updates the scroll configuration at runtime */
   public updateConfig(newConfig: Partial<IInfiniteScrollConfig>): void {
     this.config = { ...this.config, ...newConfig };
     this._mergeConfig();
   }
 
-  /**
-   * Obtém contexto para template de item
-   */
+  /** Returns template context for a given item */
   public _getItemContext(item: T, index: number): IItemTemplateContext<T> {
     return {
       $implicit: item,
       index,
-      isLast: index === this.items.length - 1
+      isLast: index === this.items.length - 1,
     };
   }
 
-  /**
-   * Obtém contexto para template de skeleton
-   */
+  /** Returns template context for skeleton loader */
   public _getSkeletonContext(itemSize: number): ISkeletonTemplateContext {
     return { itemSize };
   }
 
-  /**
-   * Mescla configuração do usuário com padrões
-   */
+  /** Merges user-defined config with default values */
   private _mergeConfig(): void {
     this.config$ = { ...DEFAULT_INFINITE_SCROLL_CONFIG, ...this.config };
   }
 
-  /**
-   * Atualiza estado interno baseado nas props
-   */
+  /** Updates internal scroll state based on inputs */
   private _updateState(): void {
     this.state.loading = this.loading;
     this.state.totalRecords = this.totalRecords;
-    this.state.hasMore = this.totalRecords === 0 || this.items.length < this.totalRecords;
-    this.state.currentPage = Math.ceil(this.items.length / this.config$.pageSize) || 1;
+    this.state.hasMore =
+      this.totalRecords === 0 || this.items.length < this.totalRecords;
+    this.state.currentPage =
+      Math.ceil(this.items.length / this.config$.pageSize) || 1;
   }
 
-  /**
-   * Atualiza estado de carregamento
-   */
+  /** Updates loading flag in the scroll state */
   private _updateLoadingState(loading: boolean): void {
     this.state.loading = loading;
   }
 
-  /**
-   * Valida se há template de item definido
-   */
+  /** Checks whether the item template is defined */
   private _hasItemTemplate(): boolean {
     return !!this.itemTemplate;
   }
 
-  /**
-   * Valida se há mais dados para carregar
-   */
+  /** Determines whether more data can be loaded */
   private _canLoadMore(): boolean {
     return !this.state.loading && this.state.hasMore;
   }
