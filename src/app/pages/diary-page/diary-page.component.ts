@@ -1,15 +1,21 @@
 // Angular
 import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { finalize, Subject, takeUntil } from 'rxjs';
+import { catchError, EMPTY, finalize, Subject, takeUntil } from 'rxjs';
 
 // PrimeNg
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import { ToggleSwitchChangeEvent, ToggleSwitchModule } from 'primeng/toggleswitch';
+import {
+  ToggleSwitchChangeEvent,
+  ToggleSwitchModule,
+} from 'primeng/toggleswitch';
 
 // Components
 import { RecordCardComponent } from '../../components/record-card/record-card.component';
-import { IRecord, IRecordPaginationParams } from '../../core/services/records/models/interfaces';
+import {
+  IRecord,
+  IRecordPaginationParams,
+} from '../../core/services/records/models/interfaces';
 import { RecordsService } from '../../core/services/records/records.service';
 
 /**
@@ -28,7 +34,12 @@ import { RecordsService } from '../../core/services/records/records.service';
  */
 @Component({
   selector: 'app-diary-page',
-  imports: [RecordCardComponent, ToggleSwitchModule, FormsModule, ProgressSpinnerModule],
+  imports: [
+    RecordCardComponent,
+    ToggleSwitchModule,
+    FormsModule,
+    ProgressSpinnerModule,
+  ],
   templateUrl: './diary-page.component.html',
   styleUrl: './diary-page.component.scss',
 })
@@ -58,11 +69,6 @@ export class DiaryPageComponent implements OnInit, OnDestroy {
   public isLoading: boolean = false;
 
   /**
-   * Loading state specifically for loading more items
-   */
-  public isLoadingMore: boolean = false;
-
-  /**
    * Indicates if there are more records to load
    */
   public hasMoreRecords: boolean = true;
@@ -70,10 +76,10 @@ export class DiaryPageComponent implements OnInit, OnDestroy {
   /**
    * Current pagination parameters
    */
-  private _paginationParams: IRecordPaginationParams = {
+  private readonly _paginationParams: IRecordPaginationParams = {
     page: 1,
     size: 10,
-    sortBy: 'datePublished' // ou outro campo de ordenação
+    sortBy: 'datePublished', // ou outro campo de ordenação
   };
 
   /**
@@ -141,9 +147,39 @@ export class DiaryPageComponent implements OnInit, OnDestroy {
     );
 
     if (record) {
+      // Atualiza localmente primeiro para UX responsiva
       record.isFavorite = currentRecord.isFavorite;
       this._updateFilteredRecords();
+
+      // Faz o update no backend
+      this._updateFavoriteInBackend(currentRecord);
     }
+  }
+
+  /**
+   * Updates the favorite status in the backend
+   */
+  private _updateFavoriteInBackend(record: IRecord): void {
+    const { id: recordId, ...recordData } = record;
+
+    this._recordService
+      .partialUpdate(recordId, recordData)
+      .pipe(
+        takeUntil(this._destroy$),
+        catchError(() => {
+          // Revert if something go wrong
+          const localRecord = this.allRecords.find((r) => r.id === record.id);
+          if (localRecord) {
+            localRecord.isFavorite = !record.isFavorite; // Reverte
+            this._updateFilteredRecords();
+          }
+
+          // TODO: add some kinda of feedback to user
+
+          return EMPTY;
+        })
+      )
+      .subscribe();
   }
 
   /**
@@ -158,7 +194,7 @@ export class DiaryPageComponent implements OnInit, OnDestroy {
     this._fetchRecords()
       .pipe(
         takeUntil(this._destroy$),
-        finalize(() => this.isLoading = false)
+        finalize(() => (this.isLoading = false))
       )
       .subscribe({
         next: (response) => {
@@ -166,43 +202,55 @@ export class DiaryPageComponent implements OnInit, OnDestroy {
           this._updateFilteredRecords();
           this._checkIfHasMoreRecords(response.data?.length || 0);
         },
-        error: (error) => {
-          console.error('Erro ao carregar registros:', error);
+        error: () => {
           this.allRecords = [];
           this._updateFilteredRecords();
-        }
+        },
       });
   }
 
   /**
    * Loads more records for infinite scroll
    */
+  /**
+   * Loads more records for infinite scroll
+   */
   private _loadMoreRecords(): void {
-    if (this.isLoadingMore || !this.hasMoreRecords) {
+    if (this.isLoading || !this.hasMoreRecords) {
       return;
     }
 
-    this.isLoadingMore = true;
+    this.isLoading = true;
     this._paginationParams.page++;
 
     this._fetchRecords()
       .pipe(
         takeUntil(this._destroy$),
-        finalize(() => this.isLoadingMore = false)
+        finalize(() => (this.isLoading = false))
       )
       .subscribe({
         next: (response) => {
           const newRecords = response.data || [];
-          this.allRecords = [...this.allRecords, ...newRecords];
+
+          const uniqueNewRecords = this._removeDuplicates(newRecords);
+
+          this.allRecords = [...this.allRecords, ...uniqueNewRecords];
           this._updateFilteredRecords();
           this._checkIfHasMoreRecords(newRecords.length);
         },
         error: (error) => {
           console.error('Erro ao carregar mais registros:', error);
-          // Reverte a página em caso de erro
           this._paginationParams.page--;
-        }
+        },
       });
+  }
+
+  /**
+   * Remove duplicatas baseado no ID
+   */
+  private _removeDuplicates(newRecords: IRecord[]): IRecord[] {
+    const existingIds = new Set(this.allRecords.map((record) => record.id));
+    return newRecords.filter((record) => !existingIds.has(record.id));
   }
 
   /**
@@ -212,7 +260,9 @@ export class DiaryPageComponent implements OnInit, OnDestroy {
     if (this.showOnlyFavorites) {
       return this._recordService.getFavoriteRecords(this._paginationParams);
     } else {
-      return this._recordService.getRecordsWithPagination(this._paginationParams);
+      return this._recordService.getRecordsWithPagination(
+        this._paginationParams
+      );
     }
   }
 
@@ -252,7 +302,7 @@ export class DiaryPageComponent implements OnInit, OnDestroy {
    * Determines if more records should be loaded based on scroll position
    */
   private _shouldLoadMore(): boolean {
-    if (this.isLoadingMore || !this.hasMoreRecords) {
+    if (this.isLoading || !this.hasMoreRecords) {
       return false;
     }
 

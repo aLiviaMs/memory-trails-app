@@ -106,69 +106,6 @@ export class RecordsService extends BaseService<IRecord> {
   }
 
   /**
-   * Toggles the favorite status of a record.
-   *
-   * @param recordId - The record ID
-   * @param options - Optional request configuration
-   * @returns Observable of the updated record
-   *
-   * @example
-   * ```typescript
-   * this.toggleFavorite(1).subscribe(response => {
-   *   console.log('Favorite status:', response.data.isFavorite);
-   * });
-   * ```
-   */
-  toggleFavorite(
-    recordId: number,
-    options?: IRequestOptions
-  ): Observable<IApiResponse<IRecord>> {
-    return this.patch<IRecord>(
-      { isFavorite: true }, // This would typically be calculated on the backend
-      `${recordId}/toggle-favorite`,
-      options
-    );
-  }
-
-  /**
-   * Sets a record as favorite.
-   *
-   * @param recordId - The record ID
-   * @param options - Optional request configuration
-   * @returns Observable of the updated record
-   *
-   * @example
-   * ```typescript
-   * this.setAsFavorite(1)
-   * ```
-   */
-  setAsFavorite(
-    recordId: number,
-    options?: IRequestOptions
-  ): Observable<IApiResponse<IRecord>> {
-    return this.partialUpdate(recordId, { isFavorite: true }, options);
-  }
-
-  /**
-   * Removes a record from favorites.
-   *
-   * @param recordId - The record ID
-   * @param options - Optional request configuration
-   * @returns Observable of the updated record
-   *
-   * @example
-   * ```typescript
-   * this.removeFromFavorites(1)
-   * ```
-   */
-  removeFromFavorites(
-    recordId: number,
-    options?: IRequestOptions
-  ): Observable<IApiResponse<IRecord>> {
-    return this.partialUpdate(recordId, { isFavorite: false }, options);
-  }
-
-  /**
    * Bulk updates multiple records.
    *
    * @param updates - Array of record updates with IDs
@@ -188,24 +125,5 @@ export class RecordsService extends BaseService<IRecord> {
     options?: IRequestOptions
   ): Observable<IApiResponse<IRecord[]>> {
     return this.post<IRecord[]>(updates, 'bulk-update', options);
-  }
-
-  /**
-   * Bulk deletes multiple records.
-   *
-   * @param recordIds - Array of record IDs to delete
-   * @param options - Optional request configuration
-   * @returns Observable of deletion result
-   *
-   * @example
-   * ```typescript
-   * this.bulkDelete([1, 2, 3])
-   * ```
-   */
-  bulkDelete(
-    recordIds: number[],
-    options?: IRequestOptions
-  ): Observable<IApiResponse<void>> {
-    return this.post<void>({ ids: recordIds }, 'bulk-delete', options);
   }
 }

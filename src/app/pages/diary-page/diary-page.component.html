@@ -20,7 +20,7 @@
     </div>
   </div>
 
-  <!-- Loading inicial -->
+  <!-- Loading -->
   @if (isLoading) {
   <div class="records-page__loading">
     <p-progressSpinner
@@ -29,14 +29,12 @@
       animationDuration="1s"
     >
     </p-progressSpinner>
-    <p class="loading-text">Carregando registros...</p>
   </div>
   }
 
-  <!-- Listagem de cards -->
-  @if (!isLoading) {
+  <!-- List cards -->
+  @if(!isLoading) { @if (filteredRecords.length > 0) {
   <div class="records-page__content">
-    @if (filteredRecords.length > 0) {
     <div class="records-grid">
       @for (record of filteredRecords; track record.id) {
       <div class="records-grid__item">
@@ -51,7 +49,7 @@
     </div>
 
     <!-- Loading more indicator -->
-    @if (isLoadingMore) {
+    @if (isLoading) {
     <div class="records-page__loading-more">
       <p-progressSpinner
         styleClass="w-2rem h-2rem"
@@ -59,25 +57,20 @@
         animationDuration="1s"
       >
       </p-progressSpinner>
-      <p class="loading-more-text">Carregando mais...</p>
-    </div>
-    }
-
-    <!-- End of results indicator -->
-    @if (!hasMoreRecords && !isLoadingMore) { } } @else {
-    <!-- Estado vazio -->
-    <div class="empty-state">
-      <i class="empty-state__icon pi pi-inbox"></i>
-      <h3 class="empty-state__title">
-        @if (!showOnlyFavorites) { Nenhum registro encontrado } @else { Não tem
-        nada favoritado 👺 }
-      </h3>
-      <p class="empty-state__message">
-        @if (showOnlyFavorites) { Você não gostou de nada? Você me odeia! }
-        @else { Não há registros disponíveis. }
-      </p>
     </div>
     }
   </div>
-  }
+  } @else {
+  <div class="empty-state">
+    <i class="empty-state__icon pi pi-inbox"></i>
+    <h3 class="empty-state__title">
+      @if (!showOnlyFavorites) { Nenhum registro encontrado } @else { Não tem
+      nada favoritado 👺 }
+    </h3>
+    <p class="empty-state__message">
+      @if (showOnlyFavorites) { Você não gostou de nada? Você me odeia! } @else
+      { Não há registros disponíveis. }
+    </p>
+  </div>
+  } }
 </div>
