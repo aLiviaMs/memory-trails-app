@@ -1,6 +1,6 @@
 <div class="infinite-scroll">
-  <!-- Loading Initial State -->
-  @if (isLoadingInitial() && hasError()) {
+  <!-- Loading State - handles both initial and more loading -->
+  @if (isLoading()) {
   <div class="infinite-scroll__loading-initial">
     <p-progressSpinner
       styleClass="infinite-scroll__spinner"
@@ -8,7 +8,6 @@
       animationDuration="1s"
     >
     </p-progressSpinner>
-    <p class="infinite-scroll__loading-text">Carregando dados...</p>
   </div>
   }
 
@@ -17,12 +16,12 @@
   <div class="infinite-scroll__error">
     <div class="infinite-scroll__error-content">
       <i class="infinite-scroll__error-icon pi pi-exclamation-triangle"></i>
-      <h3 class="infinite-scroll__error-title">Erro ao carregar dados</h3>
+      <h3 class="infinite-scroll__error-title">Error loading data</h3>
       <p class="infinite-scroll__error-message">
-        {{ errorMessage || "Ocorreu um erro inesperado. Tente novamente." }}
+        {{ errorMessage || "An unexpected error occurred. Please try again." }}
       </p>
       <p-button
-        label="Tentar Novamente"
+        label="Try Again"
         icon="pi pi-refresh"
         styleClass="infinite-scroll__error-retry"
         (onClick)="onRetry()"
@@ -43,7 +42,7 @@
       [maxBufferPx]="config.itemHeight * 10"
     >
       <!-- Virtual scroll items -->
-      @for (item of dataSource; track trackByFn($index, item)) {
+      @for (item of dataSource; track item.id || $index) {
       <div>
         <ng-container
           [ngTemplateOutlet]="itemTemplate"
@@ -53,36 +52,21 @@
       </div>
       }
 
-      <!-- Loading More Indicator -->
-      @if (isLoadingMore()) {
-      <div class="infinite-scroll__loading-more">
-        <p-progressSpinner
-          styleClass="infinite-scroll__spinner infinite-scroll__spinner--small"
-          strokeWidth="3"
-          animationDuration="1s"
-        >
-        </p-progressSpinner>
-        <span class="infinite-scroll__loading-text">Carregando mais...</span>
-      </div>
-      }
-
       <!-- No More Data Indicator -->
       @if (isComplete() && dataSource.length > 0) {
       <div class="infinite-scroll__complete">
         <i class="infinite-scroll__complete-icon pi pi-check-circle"></i>
-        <span class="infinite-scroll__complete-text"
-          >Todos os itens foram carregados</span
-        >
+        <span class="infinite-scroll__complete-text">All items loaded</span>
       </div>
       }
 
       <!-- Empty State -->
-      @if (dataSource.length === 0 && !isLoadingInitial() && !hasError()) {
+      @if (dataSource.length === 0 && !isLoading() && !hasError()) {
       <div class="infinite-scroll__empty">
         <i class="infinite-scroll__empty-icon pi pi-inbox"></i>
-        <h3 class="infinite-scroll__empty-title">Nenhum item encontrado</h3>
+        <h3 class="infinite-scroll__empty-title">No items found</h3>
         <p class="infinite-scroll__empty-message">
-          Não há dados para exibir no momento.
+          There is no data to display at the moment.
         </p>
       </div>
       }

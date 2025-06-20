@@ -11,7 +11,6 @@ import {
   OnInit,
   Output,
   TemplateRef,
-  TrackByFunction,
   ViewChild,
   computed,
   effect,
@@ -33,7 +32,6 @@ import {
   startWith,
   takeUntil
 } from 'rxjs/operators';
-
 
 // Models
 import {
@@ -121,43 +119,35 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
 
   /** Computed current scroll state */
   readonly currentState = computed(() => {
-    const _state = this._state();
-    if (_state.errorMessage) return EnumScrollState.ERROR;
-    if (_state.isLoading && _state.totalItems === 0) return EnumScrollState.LOADING_INITIAL;
-    if (_state.isLoading) return EnumScrollState.LOADING_MORE;
-    if (!_state.hasMoreItems) return EnumScrollState.COMPLETE;
+    const state = this._state();
+    if (state.errorMessage) return EnumScrollState.ERROR;
+    if (state.isLoading && state.totalItems === 0) return EnumScrollState.LOADING_INITIAL;
+    if (state.isLoading) return EnumScrollState.LOADING_MORE;
+    if (!state.hasMoreItems) return EnumScrollState.COMPLETE;
     return EnumScrollState.IDLE;
   });
 
-  /** Computed loading _state for template */
-  readonly isLoadingMore = computed(() =>
-    this.currentState() === EnumScrollState.LOADING_MORE
-  );
+  /** Single consolidated loading state - handles ALL loading scenarios */
+  readonly isLoading = computed(() => {
+    const state = this.currentState();
+    return state === EnumScrollState.LOADING_INITIAL || state === EnumScrollState.LOADING_MORE;
+  });
 
-  /** Computed initial loading _state for template */
-  readonly isLoadingInitial = computed(() =>
-    this.currentState() === EnumScrollState.LOADING_INITIAL
-  );
-
-  /** Computed error _state for template */
+  /** Computed error state for template */
   readonly hasError = computed(() =>
     this.currentState() === EnumScrollState.ERROR
   );
 
-  /** Computed complete _state for template */
+  /** Computed complete state for template */
   readonly isComplete = computed(() =>
     this.currentState() === EnumScrollState.COMPLETE
   );
 
-  /** TrackBy function for virtual scroll performance */
-  readonly trackByFn: TrackByFunction<IScrollItem> = (index: number, item: IScrollItem) =>
-    item.id || index;
-
   constructor(private readonly cdr: ChangeDetectorRef) {
-    // Effect to sync external loading _state with internal _state
+    // Effect to sync external loading state with internal state
     effect(() => {
-      this._state.update(_state => ({
-        ..._state,
+      this._state.update(state => ({
+        ...state,
         isLoading: this.loading,
         hasMoreItems: this.hasMore,
         errorMessage: this.errorMessage,
@@ -194,8 +184,8 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
    * Handles retry button click
    */
   onRetry(): void {
-    this._state.update(_state => ({
-      ..._state,
+    this._state.update(state => ({
+      ...state,
       errorMessage: null
     }));
     this.retry.emit();
@@ -303,10 +293,10 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
    * @returns True if more data can be loaded
    */
   private canLoadMore(): boolean {
-    const _state = this._state();
-    return _state.hasMoreItems &&
-           !_state.isLoading &&
-           !_state.errorMessage &&
+    const state = this._state();
+    return state.hasMoreItems &&
+           !state.isLoading &&
+           !state.errorMessage &&
            this.dataSource.length > 0;
   }
 
@@ -314,8 +304,8 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
    * Triggers the load more event with appropriate parameters
    */
   private triggerLoadMore(): void {
-    const _state = this._state();
-    const params = this.buildPaginationParams(_state);
+    const state = this._state();
+    const params = this.buildPaginationParams(state);
 
     this._state.update(currentState => ({
       ...currentState,
@@ -327,10 +317,10 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
 
   /**
    * Builds pagination parameters based on the pagination type
-   * @param _state - Current component state
+   * @param state - Current component state
    * @returns Pagination parameters
    */
-  private buildPaginationParams(_state: IScrollState): IPaginationParams {
+  private buildPaginationParams(state: IScrollState): IPaginationParams {
     const baseParams: IPaginationParams = {
       ...this.additionalParams
     };
@@ -339,14 +329,14 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
       case EnumPaginationType.PAGE_BASED:
         return {
           ...baseParams,
-          page: _state.currentPage + 1,
+          page: state.currentPage + 1,
           size: this.config.pageSize ?? 20
         };
 
       case EnumPaginationType.TOKEN_BASED:
         return {
           ...baseParams,
-          pageToken: _state.nextPageToken ?? '',
+          pageToken: state.nextPageToken ?? '',
           pageSize: String(this.config.pageSize ?? 20)
         };
 
@@ -360,11 +350,11 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
    * @param nextPageToken - Next page token for token-based pagination
    */
   updatePaginationState(nextPageToken?: string): void {
-    this._state.update(_state => ({
-      ..._state,
+    this._state.update(state => ({
+      ...state,
       currentPage: this.config.paginationType === EnumPaginationType.PAGE_BASED
-        ? _state.currentPage + 1
-        : _state.currentPage,
+        ? state.currentPage + 1
+        : state.currentPage,
       nextPageToken: nextPageToken ?? null,
       isLoading: false
     }));
