@@ -11,7 +11,7 @@ import {
 } from 'primeng/toggleswitch';
 
 // Components
-import { RecordCardComponent } from '../../components/record-card/record-card.component';
+import { RecordsComponent } from '../../components/records/records.component';
 import {
   IRecord,
   IRecordPaginationParams,
@@ -35,7 +35,8 @@ import { RecordsService } from '../../core/services/records/records.service';
 @Component({
   selector: 'app-diary-page',
   imports: [
-    RecordCardComponent,
+    RecordsComponent,
+    // RecordCardComponent,
     ToggleSwitchModule,
     FormsModule,
     ProgressSpinnerModule,

@@ -1,230 +1,387 @@
+// Angular
+import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
+import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
-  ContentChild,
   EventEmitter,
   Input,
-  OnChanges,
   OnDestroy,
   OnInit,
   Output,
-  SimpleChanges,
   TemplateRef,
   TrackByFunction,
+  ViewChild,
+  computed,
+  effect,
+  signal
 } from '@angular/core';
-import { LazyLoadEvent } from 'primeng/api';
-import { Subject } from 'rxjs';
+
+// PrimeNG
+import { ButtonModule } from 'primeng/button';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+
+// RXJS
+import { EMPTY, Subject } from 'rxjs';
 import {
-  DEFAULT_INFINITE_SCROLL_CONFIG,
-  IInfiniteScrollConfig,
-  IInfiniteScrollEvent,
-  IInfiniteScrollState,
-} from './models/interfaces';
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  filter,
+  map,
+  startWith,
+  takeUntil
+} from 'rxjs/operators';
+
+
+// Models
+import {
+  EnumPaginationType,
+  EnumScrollState,
+  IPaginationParams,
+  IScrollConfig,
+  IScrollItem,
+  IScrollState
+} from './models';
 
 /**
- * Template context for each rendered item
- */
-interface IItemTemplateContext<T> {
-  $implicit: T;
-  index: number;
-  isLast: boolean;
-}
-
-/**
- * Template context for skeleton loader
- */
-interface ISkeletonTemplateContext {
-  itemSize: number;
-}
-
-/**
- * Reusable infinite scroll component using PrimeNG
- * Compatible with Angular v19+ using the new control flow syntax.
- *
- * @example
- * ```html
- * <app-infinite-scroll
- *   [items]="products"
- *   [config]="scrollConfig"
- *   [totalRecords]="totalRecords"
- *   (onLoadMore)="loadMoreProducts($event)">
- *
- *   <ng-template #itemTemplate let-product let-index="index">
- *     <div class="product-card">
- *       <h3>{{ product.name }}</h3>
- *       <p>{{ product.description }}</p>
- *     </div>
- *   </ng-template>
- * </app-infinite-scroll>
- * ```
+ * Generic infinite scroll component with virtual scrolling support
+ * Supports both page-based and token-based pagination
  */
 @Component({
   selector: 'app-infinite-scroll',
+  standalone: true,
+  imports: [
+    CommonModule,
+    ScrollingModule,
+    ProgressSpinnerModule,
+    ButtonModule
+  ],
   templateUrl: './infinite-scroll.component.html',
   styleUrls: ['./infinite-scroll.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class InfiniteScrollComponent<T = unknown>
-  implements OnInit, OnChanges, OnDestroy
-{
-  /** List of items to be rendered */
-  @Input() items: T[] = [];
-
-  /** Infinite scroll configuration options */
-  @Input() config: Partial<IInfiniteScrollConfig> = {};
-
-  /** Total number of available records in the data source */
-  @Input() totalRecords = 0;
-
-  /** Whether data is currently loading */
-  @Input() loading = false;
-
-  /** Optional custom trackBy function for ngFor */
-  @Input() trackBy?: TrackByFunction<T>;
-
-  /** Event emitted when more data needs to be loaded */
-  @Output() onLoadMore = new EventEmitter<IInfiniteScrollEvent>();
+export class InfiniteScrollComponent implements OnInit, OnDestroy {
+  /** Reference to the virtual scroll viewport */
+  @ViewChild(CdkVirtualScrollViewport, { static: true })
+  viewport!: CdkVirtualScrollViewport;
 
   /** Template for rendering each item */
-  @ContentChild('itemTemplate') itemTemplate?: TemplateRef<
-    IItemTemplateContext<T>
-  >;
+  @Input() itemTemplate!: TemplateRef<{ $implicit: IScrollItem; index: number }>;
 
-  /** Optional skeleton loader template */
-  @ContentChild('skeletonTemplate')
-  skeletonTemplate?: TemplateRef<ISkeletonTemplateContext>;
+  /** Array of data items to display */
+  @Input() dataSource: IScrollItem[] = [];
 
-  /** Optional custom loading template */
-  @ContentChild('loadingTemplate') loadingTemplate?: TemplateRef<void>;
+  /** Whether the component is currently loading */
+  @Input() loading = false;
 
-  /** Optional empty state template */
-  @ContentChild('emptyTemplate') emptyTemplate?: TemplateRef<void>;
+  /** Whether there are more items to load */
+  @Input() hasMore = true;
 
-  /** Optional end-of-list template */
-  @ContentChild('endTemplate') endTemplate?: TemplateRef<void>;
-
-  /** Merged configuration including defaults */
-  public config$: Required<IInfiniteScrollConfig>;
-
-  /** Current scroll state (loading, pagination, etc.) */
-  public state: IInfiniteScrollState = {
-    loading: false,
-    totalRecords: 0,
-    hasMore: true,
-    currentPage: 1,
+  /** Configuration for the scroll behavior */
+  @Input() config: IScrollConfig = {
+    itemHeight: 80,
+    threshold: 200,
+    debounceTime: 100,
+    paginationType: EnumPaginationType.PAGE_BASED,
+    pageSize: 20
   };
 
-  /** Internal destroy Subject for cleaning up subscriptions */
+  /** Error message to display */
+  @Input() errorMessage: string | null = null;
+
+  /** Additional pagination parameters */
+  @Input() additionalParams: Record<string, unknown> = {};
+
+  /** Event emitted when more data needs to be loaded */
+  @Output() loadMore = new EventEmitter<IPaginationParams>();
+
+  /** Event emitted when an item is clicked */
+  @Output() itemClick = new EventEmitter<IScrollItem>();
+
+  /** Event emitted when retry is requested */
+  @Output() retry = new EventEmitter<void>();
+
+  /** Event emitted when scroll position changes */
+  @Output() scrollPositionChange = new EventEmitter<number>();
+
+  /** Subject for component destruction */
   private readonly _destroy$ = new Subject<void>();
 
-  constructor() {
-    this.config$ = { ...DEFAULT_INFINITE_SCROLL_CONFIG };
+  /** Internal state management */
+  private readonly _state = signal<IScrollState>({
+    currentPage: 0,
+    nextPageToken: null,
+    isLoading: false,
+    hasMoreItems: true,
+    errorMessage: null,
+    totalItems: 0
+  });
+
+  /** Computed current scroll state */
+  readonly currentState = computed(() => {
+    const _state = this._state();
+    if (_state.errorMessage) return EnumScrollState.ERROR;
+    if (_state.isLoading && _state.totalItems === 0) return EnumScrollState.LOADING_INITIAL;
+    if (_state.isLoading) return EnumScrollState.LOADING_MORE;
+    if (!_state.hasMoreItems) return EnumScrollState.COMPLETE;
+    return EnumScrollState.IDLE;
+  });
+
+  /** Computed loading _state for template */
+  readonly isLoadingMore = computed(() =>
+    this.currentState() === EnumScrollState.LOADING_MORE
+  );
+
+  /** Computed initial loading _state for template */
+  readonly isLoadingInitial = computed(() =>
+    this.currentState() === EnumScrollState.LOADING_INITIAL
+  );
+
+  /** Computed error _state for template */
+  readonly hasError = computed(() =>
+    this.currentState() === EnumScrollState.ERROR
+  );
+
+  /** Computed complete _state for template */
+  readonly isComplete = computed(() =>
+    this.currentState() === EnumScrollState.COMPLETE
+  );
+
+  /** TrackBy function for virtual scroll performance */
+  readonly trackByFn: TrackByFunction<IScrollItem> = (index: number, item: IScrollItem) =>
+    item.id || index;
+
+  constructor(private readonly cdr: ChangeDetectorRef) {
+    // Effect to sync external loading _state with internal _state
+    effect(() => {
+      this._state.update(_state => ({
+        ..._state,
+        isLoading: this.loading,
+        hasMoreItems: this.hasMore,
+        errorMessage: this.errorMessage,
+        totalItems: this.dataSource.length
+      }));
+    });
   }
 
-  /** Initializes the component and merges config */
+  /**
+   * Component initialization
+   */
   ngOnInit(): void {
-    this._mergeConfig();
-    this._updateState();
+    this.setupScrollListener();
+    this.initializeState();
   }
 
-  /** Handles changes to input properties */
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['config']) {
-      this._mergeConfig();
-    }
-
-    if (changes['items'] || changes['totalRecords'] || changes['loading']) {
-      this._updateState();
-    }
-  }
-
-  /** Cleans up resources when component is destroyed */
+  /**
+   * Component cleanup
+   */
   ngOnDestroy(): void {
     this._destroy$.next();
     this._destroy$.complete();
   }
 
   /**
-   * Default or custom trackBy function
-   * Supports Angular v19 @for syntax
+   * Handles item click events
+   * @param item - The clicked item
    */
-  public _trackByFn: TrackByFunction<T> = (index: number, item: T): unknown => {
-    return this.trackBy ? this.trackBy(index, item) : index;
-  };
+  onItemClick(item: IScrollItem): void {
+    this.itemClick.emit(item);
+  }
 
-  /** Handles PrimeNG lazy load event */
-  public _onLazyLoad(event: LazyLoadEvent): void {
-    if (this.state.loading || !this.state.hasMore) {
-      return;
+  /**
+   * Handles retry button click
+   */
+  onRetry(): void {
+    this._state.update(_state => ({
+      ..._state,
+      errorMessage: null
+    }));
+    this.retry.emit();
+  }
+
+  /**
+   * Manually triggers loading more data
+   */
+  loadMoreData(): void {
+    if (this.canLoadMore()) {
+      this.triggerLoadMore();
+    }
+  }
+
+  /**
+   * Scrolls to a specific item by index
+   * @param index - Index of the item to scroll to
+   */
+  scrollToIndex(index: number): void {
+    if (this.viewport && index >= 0 && index < this.dataSource.length) {
+      this.viewport.scrollToIndex(index);
+    }
+  }
+
+  /**
+   * Scrolls to the top of the list
+   */
+  scrollToTop(): void {
+    if (this.viewport) {
+      this.viewport.scrollToIndex(0);
+    }
+  }
+
+  /**
+   * Gets the current scroll position
+   * @returns Current scroll position in pixels
+   */
+  getScrollPosition(): number {
+    return this.viewport?.measureScrollOffset() || 0;
+  }
+
+  /**
+   * Sets up the scroll event listener with debouncing
+   */
+  private setupScrollListener(): void {
+    if (!this.viewport) return;
+
+    const scroll$ = this.viewport.elementScrolled().pipe(
+      startWith(null),
+      debounceTime(this.config.debounceTime ?? 100),
+      map(() => this.viewport.measureScrollOffset()),
+      distinctUntilChanged(),
+      takeUntil(this._destroy$)
+    );
+
+    const scrollEnd$ = scroll$.pipe(
+      filter(() => this.shouldLoadMore()),
+      catchError(() => EMPTY)
+    );
+
+    // Emit scroll position changes
+    scroll$.subscribe(position => {
+      this.scrollPositionChange.emit(position);
+    });
+
+    // Handle load more trigger
+    scrollEnd$.subscribe(() => {
+      this.triggerLoadMore();
+    });
+  }
+
+  /**
+   * Initializes the component state
+   */
+  private initializeState(): void {
+    this._state.set({
+      currentPage: 0,
+      nextPageToken: null,
+      isLoading: this.loading,
+      hasMoreItems: this.hasMore,
+      errorMessage: this.errorMessage,
+      totalItems: this.dataSource.length
+    });
+  }
+
+  /**
+   * Determines if more data should be loaded based on scroll position
+   * @returns True if more data should be loaded
+   */
+  private shouldLoadMore(): boolean {
+    if (!this.viewport || !this.canLoadMore()) {
+      return false;
     }
 
-    const scrollEvent: IInfiniteScrollEvent = {
-      first: event.first as number,
-      rows: event.rows ?? this.config$.pageSize,
-      page:
-        Math.floor(
-          (event.first as number) / (event.rows ?? this.config$.pageSize)
-        ) + 1,
+    const threshold = this.config.threshold ?? 200;
+    const scrollOffset = this.viewport.measureScrollOffset();
+    const scrollHeight = this.viewport.getDataLength() * this.config.itemHeight;
+    const viewportHeight = this.viewport.getViewportSize();
+
+    return (scrollHeight - scrollOffset - viewportHeight) <= threshold;
+  }
+
+  /**
+   * Checks if more data can be loaded
+   * @returns True if more data can be loaded
+   */
+  private canLoadMore(): boolean {
+    const _state = this._state();
+    return _state.hasMoreItems &&
+           !_state.isLoading &&
+           !_state.errorMessage &&
+           this.dataSource.length > 0;
+  }
+
+  /**
+   * Triggers the load more event with appropriate parameters
+   */
+  private triggerLoadMore(): void {
+    const _state = this._state();
+    const params = this.buildPaginationParams(_state);
+
+    this._state.update(currentState => ({
+      ...currentState,
+      isLoading: true
+    }));
+
+    this.loadMore.emit(params);
+  }
+
+  /**
+   * Builds pagination parameters based on the pagination type
+   * @param _state - Current component state
+   * @returns Pagination parameters
+   */
+  private buildPaginationParams(_state: IScrollState): IPaginationParams {
+    const baseParams: IPaginationParams = {
+      ...this.additionalParams
     };
 
-    this._updateLoadingState(true);
-    this.onLoadMore.emit(scrollEvent);
+    switch (this.config.paginationType) {
+      case EnumPaginationType.PAGE_BASED:
+        return {
+          ...baseParams,
+          page: _state.currentPage + 1,
+          size: this.config.pageSize ?? 20
+        };
+
+      case EnumPaginationType.TOKEN_BASED:
+        return {
+          ...baseParams,
+          pageToken: _state.nextPageToken ?? '',
+          pageSize: String(this.config.pageSize ?? 20)
+        };
+
+      default:
+        return baseParams;
+    }
   }
 
-  /** Resets the internal scroll state (e.g. on filter reset) */
-  public reset(): void {
-    this.state.currentPage = 1;
-    this.state.hasMore = true;
-    this.state.loading = false;
+  /**
+   * Updates the pagination state after successful data load
+   * @param nextPageToken - Next page token for token-based pagination
+   */
+  updatePaginationState(nextPageToken?: string): void {
+    this._state.update(_state => ({
+      ..._state,
+      currentPage: this.config.paginationType === EnumPaginationType.PAGE_BASED
+        ? _state.currentPage + 1
+        : _state.currentPage,
+      nextPageToken: nextPageToken ?? null,
+      isLoading: false
+    }));
   }
 
-  /** Updates the scroll configuration at runtime */
-  public updateConfig(newConfig: Partial<IInfiniteScrollConfig>): void {
-    this.config = { ...this.config, ...newConfig };
-    this._mergeConfig();
-  }
-
-  /** Returns template context for a given item */
-  public _getItemContext(item: T, index: number): IItemTemplateContext<T> {
-    return {
-      $implicit: item,
-      index,
-      isLast: index === this.items.length - 1,
-    };
-  }
-
-  /** Returns template context for skeleton loader */
-  public _getSkeletonContext(itemSize: number): ISkeletonTemplateContext {
-    return { itemSize };
-  }
-
-  /** Merges user-defined config with default values */
-  private _mergeConfig(): void {
-    this.config$ = { ...DEFAULT_INFINITE_SCROLL_CONFIG, ...this.config };
-  }
-
-  /** Updates internal scroll state based on inputs */
-  private _updateState(): void {
-    this.state.loading = this.loading;
-    this.state.totalRecords = this.totalRecords;
-    this.state.hasMore =
-      this.totalRecords === 0 || this.items.length < this.totalRecords;
-    this.state.currentPage =
-      Math.ceil(this.items.length / this.config$.pageSize) || 1;
-  }
-
-  /** Updates loading flag in the scroll state */
-  private _updateLoadingState(loading: boolean): void {
-    this.state.loading = loading;
-  }
-
-  /** Checks whether the item template is defined */
-  private _hasItemTemplate(): boolean {
-    return !!this.itemTemplate;
-  }
-
-  /** Determines whether more data can be loaded */
-  private _canLoadMore(): boolean {
-    return !this.state.loading && this.state.hasMore;
+  /**
+   * Resets the component state for new data loading
+   */
+  reset(): void {
+    this._state.set({
+      currentPage: 0,
+      nextPageToken: null,
+      isLoading: false,
+      hasMoreItems: true,
+      errorMessage: null,
+      totalItems: 0
+    });
+    this.scrollToTop();
   }
 }

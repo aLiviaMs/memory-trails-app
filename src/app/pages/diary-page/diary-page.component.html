@@ -20,57 +20,6 @@
     </div>
   </div>
 
-  <!-- Loading -->
-  @if (isLoading) {
-  <div class="records-page__loading">
-    <p-progressSpinner
-      styleClass="w-4rem h-4rem"
-      strokeWidth="4"
-      animationDuration="1s"
-    >
-    </p-progressSpinner>
-  </div>
-  }
-
   <!-- List cards -->
-  @if(!isLoading) { @if (filteredRecords.length > 0) {
-  <div class="records-page__content">
-    <div class="records-grid">
-      @for (record of filteredRecords; track record.id) {
-      <div class="records-grid__item">
-        <app-record-card
-          class="records-grid__card"
-          [content]="record"
-          (favoriteToggled)="onFavoriteChanged($event)"
-        >
-        </app-record-card>
-      </div>
-      }
-    </div>
-
-    <!-- Loading more indicator -->
-    @if (isLoading) {
-    <div class="records-page__loading-more">
-      <p-progressSpinner
-        styleClass="w-2rem h-2rem"
-        strokeWidth="4"
-        animationDuration="1s"
-      >
-      </p-progressSpinner>
-    </div>
-    }
-  </div>
-  } @else {
-  <div class="empty-state">
-    <i class="empty-state__icon pi pi-inbox"></i>
-    <h3 class="empty-state__title">
-      @if (!showOnlyFavorites) { Nenhum registro encontrado } @else { Não tem
-      nada favoritado 👺 }
-    </h3>
-    <p class="empty-state__message">
-      @if (showOnlyFavorites) { Você não gostou de nada? Você me odeia! } @else
-      { Não há registros disponíveis. }
-    </p>
-  </div>
-  } }
+  <app-records></app-records>
 </div>

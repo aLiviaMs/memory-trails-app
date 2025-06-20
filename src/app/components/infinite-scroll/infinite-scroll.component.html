@@ -1,99 +1,105 @@
-<div class="infinite-scroll" [class]="config.customClass">
-  <p-scroller
-    [items]="items"
-    [itemSize]="config.itemSize"
-    [buffer]="config.buffer"
-    [delay]="config.delay"
-    [loading]="state.loading"
-    [lazy]="true"
-    (onLazyLoad)="_onLazyLoad($event)"
-    styleClass="infinite-scroll__scroller"
-    [style]="{ width: '100%', height: config.containerHeight }"
-  >
-    <!-- Content -->
-    <ng-template pTemplate="content" let-items let-options="options">
-      <div
-        class="infinite-scroll__content"
-        [style.height.px]="options.contentSize"
-      >
-        @for (item of items; track _trackByFn($index, item); let i = $index) {
-        <div class="infinite-scroll__item" [style.height.px]="options.itemSize">
-          <ng-container
-            [ngTemplateOutlet]="itemTemplate"
-            [ngTemplateOutletContext]="{
-              $implicit: item,
-              index: i,
-              isLast: i === items.length - 1
-            }"
-          >
-          </ng-container>
-        </div>
-        }
-      </div>
-    </ng-template>
-
-    <!-- Skeleton loader -->
-    @if (config.showSkeleton) {
-    <ng-template pTemplate="loader" let-options="options">
-      <div class="infinite-scroll__loader" [style.height.px]="options.itemSize">
-        @if (skeletonTemplate) {
-        <ng-container
-          [ngTemplateOutlet]="skeletonTemplate"
-          [ngTemplateOutletContext]="{
-            itemSize: options.itemSize
-          }"
-        >
-        </ng-container>
-        } @else {
-        <div class="infinite-scroll__skeleton">
-          <p-skeleton
-            width="100%"
-            [height]="options.itemSize - 16 + 'px'"
-            class="infinite-scroll__skeleton-item"
-          >
-          </p-skeleton>
-        </div>
-        }
-      </div>
-    </ng-template>
-    }
-  </p-scroller>
-
-  <!-- Loading indicator -->
-  @if (state.loading && items.length > 0) {
-  <div class="infinite-scroll__loading">
+<div class="infinite-scroll">
+  <!-- Loading Initial State -->
+  @if (isLoadingInitial() && hasError()) {
+  <div class="infinite-scroll__loading-initial">
     <p-progressSpinner
       styleClass="infinite-scroll__spinner"
-      strokeWidth="4"
+      strokeWidth="3"
       animationDuration="1s"
     >
     </p-progressSpinner>
-    @if (loadingTemplate) {
-    <span class="infinite-scroll__loading-text">
-      <ng-container [ngTemplateOutlet]="loadingTemplate"></ng-container>
-    </span>
-    }
+    <p class="infinite-scroll__loading-text">Carregando dados...</p>
   </div>
   }
 
-  <!-- Empty State -->
-  @if (!state.loading && items.length === 0) {
-  <div class="infinite-scroll__empty">
-    @if (emptyTemplate) {
-    <ng-container [ngTemplateOutlet]="emptyTemplate"></ng-container>
-    } @else {
-    <div class="infinite-scroll__empty-content">
-      <i class="pi pi-inbox infinite-scroll__empty-icon"></i>
-      <p class="infinite-scroll__empty-text">Nenhum item encontrado</p>
+  <!-- Error State -->
+  @else if (hasError()) {
+  <div class="infinite-scroll__error">
+    <div class="infinite-scroll__error-content">
+      <i class="infinite-scroll__error-icon pi pi-exclamation-triangle"></i>
+      <h3 class="infinite-scroll__error-title">Erro ao carregar dados</h3>
+      <p class="infinite-scroll__error-message">
+        {{ errorMessage || "Ocorreu um erro inesperado. Tente novamente." }}
+      </p>
+      <p-button
+        label="Tentar Novamente"
+        icon="pi pi-refresh"
+        styleClass="infinite-scroll__error-retry"
+        (onClick)="onRetry()"
+      >
+      </p-button>
     </div>
-    }
   </div>
   }
 
-  <!-- End Template -->
-  @if (!state.hasMore && items.length > 0 && !state.loading && endTemplate) {
-  <div class="infinite-scroll__end">
-    <ng-container [ngTemplateOutlet]="endTemplate"></ng-container>
+  <!-- Main Content -->
+  @else {
+  <div class="infinite-scroll__container">
+    <cdk-virtual-scroll-viewport
+      #viewport
+      class="infinite-scroll__viewport"
+      [itemSize]="config.itemHeight"
+      [minBufferPx]="config.itemHeight * 5"
+      [maxBufferPx]="config.itemHeight * 10"
+    >
+      <!-- Virtual scroll items -->
+      @for (item of dataSource; track trackByFn($index, item)) {
+      <div>
+        <ng-container
+          [ngTemplateOutlet]="itemTemplate"
+          [ngTemplateOutletContext]="{ $implicit: item, index: $index }"
+        >
+        </ng-container>
+      </div>
+      }
+
+      <!-- Loading More Indicator -->
+      @if (isLoadingMore()) {
+      <div class="infinite-scroll__loading-more">
+        <p-progressSpinner
+          styleClass="infinite-scroll__spinner infinite-scroll__spinner--small"
+          strokeWidth="3"
+          animationDuration="1s"
+        >
+        </p-progressSpinner>
+        <span class="infinite-scroll__loading-text">Carregando mais...</span>
+      </div>
+      }
+
+      <!-- No More Data Indicator -->
+      @if (isComplete() && dataSource.length > 0) {
+      <div class="infinite-scroll__complete">
+        <i class="infinite-scroll__complete-icon pi pi-check-circle"></i>
+        <span class="infinite-scroll__complete-text"
+          >Todos os itens foram carregados</span
+        >
+      </div>
+      }
+
+      <!-- Empty State -->
+      @if (dataSource.length === 0 && !isLoadingInitial() && !hasError()) {
+      <div class="infinite-scroll__empty">
+        <i class="infinite-scroll__empty-icon pi pi-inbox"></i>
+        <h3 class="infinite-scroll__empty-title">Nenhum item encontrado</h3>
+        <p class="infinite-scroll__empty-message">
+          Não há dados para exibir no momento.
+        </p>
+      </div>
+      }
+    </cdk-virtual-scroll-viewport>
   </div>
+  }
+
+  <!-- Scroll to Top Button -->
+  @if (dataSource.length > 10) {
+  <p-button
+    icon="pi pi-angle-up"
+    styleClass="infinite-scroll__scroll-top"
+    [style.display]="getScrollPosition() > 500 ? 'flex' : 'none'"
+    (onClick)="scrollToTop()"
+    [rounded]="true"
+    [text]="true"
+  >
+  </p-button>
   }
 </div>
