@@ -128,20 +128,15 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
   });
 
   /** Single consolidated loading state - handles ALL loading scenarios */
-  readonly isLoading = computed(() => {
+  get isLoading(): boolean {
     const state = this.currentState();
     return state === EnumScrollState.LOADING_INITIAL || state === EnumScrollState.LOADING_MORE;
-  });
+  };
 
   /** Computed error state for template */
-  readonly hasError = computed(() =>
-    this.currentState() === EnumScrollState.ERROR
-  );
-
-  /** Computed complete state for template */
-  readonly isComplete = computed(() =>
-    this.currentState() === EnumScrollState.COMPLETE
-  );
+  get hasError(): boolean {
+    return this.currentState() === EnumScrollState.ERROR
+  }
 
   constructor(private readonly cdr: ChangeDetectorRef) {
     // Effect to sync external loading state with internal state
@@ -217,14 +212,6 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
     if (this.viewport) {
       this.viewport.scrollToIndex(0);
     }
-  }
-
-  /**
-   * Gets the current scroll position
-   * @returns Current scroll position in pixels
-   */
-  getScrollPosition(): number {
-    return this.viewport?.measureScrollOffset() || 0;
   }
 
   /**

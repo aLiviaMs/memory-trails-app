@@ -1,6 +1,6 @@
 <div class="infinite-scroll">
   <!-- Loading State - handles both initial and more loading -->
-  @if (isLoading()) {
+  @if (isLoading) {
   <div class="infinite-scroll__loading-initial">
     <p-progressSpinner
       styleClass="infinite-scroll__spinner"
@@ -12,7 +12,7 @@
   }
 
   <!-- Error State -->
-  @else if (hasError()) {
+  @else if (hasError) {
   <div class="infinite-scroll__error">
     <div class="infinite-scroll__error-content">
       <i class="infinite-scroll__error-icon pi pi-exclamation-triangle"></i>
@@ -52,38 +52,14 @@
       </div>
       }
 
-      <!-- No More Data Indicator -->
-      @if (isComplete() && dataSource.length > 0) {
-      <div class="infinite-scroll__complete">
-        <i class="infinite-scroll__complete-icon pi pi-check-circle"></i>
-        <span class="infinite-scroll__complete-text">All items loaded</span>
-      </div>
-      }
-
       <!-- Empty State -->
-      @if (dataSource.length === 0 && !isLoading() && !hasError()) {
+      @if (dataSource.length === 0 && !isLoading && !hasError) {
       <div class="infinite-scroll__empty">
         <i class="infinite-scroll__empty-icon pi pi-inbox"></i>
-        <h3 class="infinite-scroll__empty-title">No items found</h3>
-        <p class="infinite-scroll__empty-message">
-          There is no data to display at the moment.
-        </p>
+        <h3 class="infinite-scroll__empty-title">Nada encontrado</h3>
       </div>
       }
     </cdk-virtual-scroll-viewport>
   </div>
-  }
-
-  <!-- Scroll to Top Button -->
-  @if (dataSource.length > 10) {
-  <p-button
-    icon="pi pi-angle-up"
-    styleClass="infinite-scroll__scroll-top"
-    [style.display]="getScrollPosition() > 500 ? 'flex' : 'none'"
-    (onClick)="scrollToTop()"
-    [rounded]="true"
-    [text]="true"
-  >
-  </p-button>
   }
 </div>
