@@ -1,9 +1,10 @@
 // Angular
-import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
+import {
+  CdkVirtualScrollViewport,
+  ScrollingModule,
+} from '@angular/cdk/scrolling';
 import { CommonModule } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
-  ChangeDetectorRef,
   Component,
   EventEmitter,
   Input,
@@ -14,7 +15,7 @@ import {
   ViewChild,
   computed,
   effect,
-  signal
+  signal,
 } from '@angular/core';
 
 // PrimeNG
@@ -30,7 +31,7 @@ import {
   filter,
   map,
   startWith,
-  takeUntil
+  takeUntil,
 } from 'rxjs/operators';
 
 // Models
@@ -40,7 +41,7 @@ import {
   IPaginationParams,
   IScrollConfig,
   IScrollItem,
-  IScrollState
+  IScrollState,
 } from './models';
 
 /**
@@ -50,15 +51,9 @@ import {
 @Component({
   selector: 'app-infinite-scroll',
   standalone: true,
-  imports: [
-    CommonModule,
-    ScrollingModule,
-    ProgressSpinnerModule,
-    ButtonModule
-  ],
+  imports: [CommonModule, ScrollingModule, ProgressSpinnerModule, ButtonModule],
   templateUrl: './infinite-scroll.component.html',
   styleUrls: ['./infinite-scroll.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class InfiniteScrollComponent implements OnInit, OnDestroy {
   /** Reference to the virtual scroll viewport */
@@ -66,7 +61,10 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
   viewport!: CdkVirtualScrollViewport;
 
   /** Template for rendering each item */
-  @Input() itemTemplate!: TemplateRef<{ $implicit: IScrollItem; index: number }>;
+  @Input() itemTemplate!: TemplateRef<{
+    $implicit: IScrollItem;
+    index: number;
+  }>;
 
   /** Array of data items to display */
   @Input() dataSource: IScrollItem[] = [];
@@ -83,7 +81,7 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
     threshold: 200,
     debounceTime: 100,
     paginationType: EnumPaginationType.PAGE_BASED,
-    pageSize: 20
+    pageSize: 20,
   };
 
   /** Error message to display */
@@ -111,42 +109,38 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
   private readonly _state = signal<IScrollState>({
     currentPage: 0,
     nextPageToken: null,
-    isLoading: false,
+    isLoading: true,
     hasMoreItems: true,
     errorMessage: null,
-    totalItems: 0
+    totalItems: 0,
   });
+
+  /** Getter loading state */
+  get isLoading(): boolean {
+    return this.loading;
+  }
+
+  /** Getter error state for template */
+  get hasError(): boolean {
+    return this.currentState() === EnumScrollState.ERROR;
+  }
 
   /** Computed current scroll state */
   readonly currentState = computed(() => {
     const state = this._state();
     if (state.errorMessage) return EnumScrollState.ERROR;
-    if (state.isLoading && state.totalItems === 0) return EnumScrollState.LOADING_INITIAL;
-    if (state.isLoading) return EnumScrollState.LOADING_MORE;
     if (!state.hasMoreItems) return EnumScrollState.COMPLETE;
     return EnumScrollState.IDLE;
   });
 
-  /** Single consolidated loading state - handles ALL loading scenarios */
-  get isLoading(): boolean {
-    const state = this.currentState();
-    return state === EnumScrollState.LOADING_INITIAL || state === EnumScrollState.LOADING_MORE;
-  };
-
-  /** Computed error state for template */
-  get hasError(): boolean {
-    return this.currentState() === EnumScrollState.ERROR
-  }
-
-  constructor(private readonly cdr: ChangeDetectorRef) {
+  constructor() {
     // Effect to sync external loading state with internal state
     effect(() => {
-      this._state.update(state => ({
+      this._state.update((state) => ({
         ...state,
-        isLoading: this.loading,
         hasMoreItems: this.hasMore,
         errorMessage: this.errorMessage,
-        totalItems: this.dataSource.length
+        totalItems: this.dataSource.length,
       }));
     });
   }
@@ -179,9 +173,9 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
    * Handles retry button click
    */
   onRetry(): void {
-    this._state.update(state => ({
+    this._state.update((state) => ({
       ...state,
-      errorMessage: null
+      errorMessage: null,
     }));
     this.retry.emit();
   }
@@ -234,7 +228,7 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
     );
 
     // Emit scroll position changes
-    scroll$.subscribe(position => {
+    scroll$.subscribe((position) => {
       this.scrollPositionChange.emit(position);
     });
 
@@ -254,7 +248,7 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
       isLoading: this.loading,
       hasMoreItems: this.hasMore,
       errorMessage: this.errorMessage,
-      totalItems: this.dataSource.length
+      totalItems: this.dataSource.length,
     });
   }
 
@@ -272,7 +266,7 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
     const scrollHeight = this.viewport.getDataLength() * this.config.itemHeight;
     const viewportHeight = this.viewport.getViewportSize();
 
-    return (scrollHeight - scrollOffset - viewportHeight) <= threshold;
+    return scrollHeight - scrollOffset - viewportHeight <= threshold;
   }
 
   /**
@@ -281,10 +275,12 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
    */
   private canLoadMore(): boolean {
     const state = this._state();
-    return state.hasMoreItems &&
-           !state.isLoading &&
-           !state.errorMessage &&
-           this.dataSource.length > 0;
+    return (
+      state.hasMoreItems &&
+      !state.isLoading &&
+      !state.errorMessage &&
+      this.dataSource.length > 0
+    );
   }
 
   /**
@@ -294,9 +290,9 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
     const state = this._state();
     const params = this.buildPaginationParams(state);
 
-    this._state.update(currentState => ({
+    this._state.update((currentState) => ({
       ...currentState,
-      isLoading: true
+      isLoading: true,
     }));
 
     this.loadMore.emit(params);
@@ -309,7 +305,7 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
    */
   private buildPaginationParams(state: IScrollState): IPaginationParams {
     const baseParams: IPaginationParams = {
-      ...this.additionalParams
+      ...this.additionalParams,
     };
 
     switch (this.config.paginationType) {
@@ -317,14 +313,14 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
         return {
           ...baseParams,
           page: state.currentPage + 1,
-          size: this.config.pageSize ?? 20
+          size: this.config.pageSize ?? 20,
         };
 
       case EnumPaginationType.TOKEN_BASED:
         return {
           ...baseParams,
           pageToken: state.nextPageToken ?? '',
-          pageSize: String(this.config.pageSize ?? 20)
+          pageSize: String(this.config.pageSize ?? 20),
         };
 
       default:
@@ -337,13 +333,14 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
    * @param nextPageToken - Next page token for token-based pagination
    */
   updatePaginationState(nextPageToken?: string): void {
-    this._state.update(state => ({
+    this._state.update((state) => ({
       ...state,
-      currentPage: this.config.paginationType === EnumPaginationType.PAGE_BASED
-        ? state.currentPage + 1
-        : state.currentPage,
+      currentPage:
+        this.config.paginationType === EnumPaginationType.PAGE_BASED
+          ? state.currentPage + 1
+          : state.currentPage,
       nextPageToken: nextPageToken ?? null,
-      isLoading: false
+      isLoading: false,
     }));
   }
 
@@ -357,7 +354,7 @@ export class InfiniteScrollComponent implements OnInit, OnDestroy {
       isLoading: false,
       hasMoreItems: true,
       errorMessage: null,
-      totalItems: 0
+      totalItems: 0,
     });
     this.scrollToTop();
   }
