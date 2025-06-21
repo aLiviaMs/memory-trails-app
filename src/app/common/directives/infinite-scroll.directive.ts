@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 // Angular
 import {
   Directive,
@@ -15,7 +14,7 @@ import {
 import { Subject, debounceTime, distinctUntilChanged, fromEvent, takeUntil } from 'rxjs';
 
 /**
- * Diretiva para implementar scroll infinito em qualquer elemento scrollável
+ * Directive to implement infinite scrolling on any scrollable element.
  *
  * @example
  * ```html
@@ -25,7 +24,7 @@ import { Subject, debounceTime, distinctUntilChanged, fromEvent, takeUntil } fro
  *   [disabled]="loading"
  *   (scrolled)="loadMore()"
  * >
- *   <!-- conteúdo -->
+ *   <!-- content -->
  * </div>
  * ```
  */
@@ -34,53 +33,51 @@ import { Subject, debounceTime, distinctUntilChanged, fromEvent, takeUntil } fro
   standalone: true
 })
 export class InfiniteScrollDirective implements OnInit, OnDestroy {
-  /** Distância do final para disparar o evento (em pixels) */
+  /** Distance from the bottom of the scroll (in pixels) to trigger the load event */
   @Input() threshold = 200;
 
-  /** Tempo de debounce para o scroll (em ms) */
+  /** Debounce time for scroll events (in milliseconds) */
   @Input() debounceTime = 100;
 
-  /** Se true, desabilita o infinite scroll */
+  /** If true, infinite scroll is disabled */
   @Input() disabled = false;
 
-  /** Se true, não há mais itens para carregar */
+  /** If true, indicates there are no more items to load */
   @Input() noMore = false;
 
-  /** Evento emitido quando deve carregar mais itens */
+  /** Event emitted when more items should be loaded */
   @Output() scrolled = new EventEmitter<void>();
 
-  /** Evento emitido com a posição do scroll */
+  /** Event emitted with the current scroll position */
   @Output() scrollPosition = new EventEmitter<number>();
 
-  private readonly elementRef = inject(ElementRef<HTMLElement>);
-  private readonly destroy$ = new Subject<void>();
+  private readonly _elementRef = inject(ElementRef<HTMLElement>);
+  private readonly _destroy$ = new Subject<void>();
 
   ngOnInit(): void {
     this.setupScrollListener();
   }
 
   ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+    this._destroy$.next();
+    this._destroy$.complete();
   }
 
   /**
-   * Configura o listener de scroll
+   * Sets up the scroll event listener with debounce and change detection.
    */
   private setupScrollListener(): void {
-    const element = this.elementRef.nativeElement;
+    const element = this._elementRef.nativeElement;
 
     fromEvent(element, 'scroll')
       .pipe(
         debounceTime(this.debounceTime),
         distinctUntilChanged(),
-        takeUntil(this.destroy$)
+        takeUntil(this._destroy$)
       )
       .subscribe(() => {
         const scrollPosition = element.scrollTop;
         this.scrollPosition.emit(scrollPosition);
-
-        console.log({scrollPosition})
 
         if (this.shouldLoadMore(element)) {
           this.scrolled.emit();
@@ -89,7 +86,7 @@ export class InfiniteScrollDirective implements OnInit, OnDestroy {
   }
 
   /**
-   * Verifica se deve carregar mais itens
+   * Determines whether more items should be loaded based on scroll position.
    */
   private shouldLoadMore(element: HTMLElement): boolean {
     if (this.disabled || this.noMore) {
