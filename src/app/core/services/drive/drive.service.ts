@@ -327,6 +327,13 @@ export class DriveService extends BaseService<IDriveFile> {
     return this.post<IBulkUploadResponse>(formData, 'files/bulk');
   }
 
+  /**
+   * Getter to bulk endpoint
+   */
+  public get uploadBulkFilesEndpoint(): string {
+    return `${this.baseUrl}/${this.endpoint}/files/bulk`
+  }
+
 
   /**
    * Bulk deletes multiple files.

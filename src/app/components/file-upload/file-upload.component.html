@@ -1,0 +1,17 @@
+<div class="card">
+  <p-toast />
+  <p-fileupload
+    name="files"
+    accept="image/*"
+    method="post"
+    auto="true"
+    [url]="endpoint"
+    [multiple]="true"
+    (onUpload)="onUpload($event)"
+    (onError)="onError($event)"
+  >
+    <ng-template #empty>
+      <div>Solte e arraste arquivos aqui</div>
+    </ng-template>
+  </p-fileupload>
+</div>
