@@ -23,6 +23,7 @@
   &__content {
     padding: vars.$content-padding;
     flex: 1;
+    min-height: 100%;
 
     @include bp.respond-to(mobile) {
       padding: vars.$content-padding-mobile;

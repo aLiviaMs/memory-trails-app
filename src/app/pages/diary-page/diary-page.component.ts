@@ -1,319 +1,245 @@
 // Angular
-import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { catchError, EMPTY, finalize, Subject, takeUntil } from 'rxjs';
 
-// PrimeNg
+// PrimeNG
+import { ButtonModule } from 'primeng/button';
+import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { ToastModule } from 'primeng/toast';
 import {
   ToggleSwitchChangeEvent,
   ToggleSwitchModule,
 } from 'primeng/toggleswitch';
 
-// Components
-import { RecordsComponent } from '../../components/records/records.component';
-import {
-  IRecord,
-  IRecordPaginationParams,
-} from '../../core/services/records/models/interfaces';
+// PrimeNG Services
+import { MessageService } from 'primeng/api';
+
+// RxJS
+import { catchError, finalize, of } from 'rxjs';
+
+// Services & Models
+import { IRecord } from '../../core/services/records/models/interfaces';
 import { RecordsService } from '../../core/services/records/records.service';
 
+// Components
+import { RecordCardComponent } from '../../components/record-card/record-card.component';
+
+// Directives
+import { InfiniteScrollDirective } from '../../common/directives/infinite-scroll.directive';
+
 /**
- * Component responsible for displaying a records listing page
- * with favorite filtering functionality
- *
- * @component RecordsPageComponent
- * @description This component manages the display of a records list,
- * allowing users to filter only records marked as favorites
- * through a toggle switch.
- *
- * @example
- * ```html
- * <app-records-page></app-records-page>
- * ```
+ * Componente da página do diário com listagem de records e filtro de favoritos
  */
 @Component({
   selector: 'app-diary-page',
+  standalone: true,
   imports: [
-    RecordsComponent,
-    // RecordCardComponent,
-    ToggleSwitchModule,
+    CommonModule,
     FormsModule,
+    ButtonModule,
     ProgressSpinnerModule,
+    MessageModule,
+    ToggleSwitchModule,
+    ToastModule,
+    RecordCardComponent,
+    InfiniteScrollDirective,
   ],
+  providers: [MessageService],
   templateUrl: './diary-page.component.html',
   styleUrl: './diary-page.component.scss',
 })
-export class DiaryPageComponent implements OnInit, OnDestroy {
-  /**
-   * Controls whether to display only favorite records
-   * @type {boolean}
-   * @default false
-   */
-  public showOnlyFavorites: boolean = false;
+export class DiaryPageComponent implements OnInit {
+  private readonly _recordsService = inject(RecordsService);
+  private readonly _destroyRef = inject(DestroyRef);
+  private readonly _messageService = inject(MessageService);
 
-  /**
-   * Array containing all loaded records
-   */
-  public allRecords: IRecord[] = [];
+  // Estados
+  records = signal<IRecord[]>([]);
+  loading = signal(false);
+  hasMore = signal(true);
+  error = signal<string | null>(null);
+  currentPage = signal(0);
+  showOnlyFavorites = signal(false);
 
-  /**
-   * Array containing filtered records based on the switch state
-   * @type {IRecord[]}
-   * @default []
-   */
-  public filteredRecords: IRecord[] = [];
+  readonly pageSize = 5;
 
-  /**
-   * Loading state for initial load and pagination
-   */
-  public isLoading: boolean = false;
-
-  /**
-   * Indicates if there are more records to load
-   */
-  public hasMoreRecords: boolean = true;
-
-  /**
-   * Current pagination parameters
-   */
-  private readonly _paginationParams: IRecordPaginationParams = {
-    page: 1,
-    size: 10,
-    sortBy: 'datePublished', // ou outro campo de ordenação
-  };
-
-  /**
-   * Subject for handling component destruction
-   */
-  private readonly _destroy$ = new Subject<void>();
-
-  constructor(private readonly _recordService: RecordsService) {}
-
-  /**
-   * Initializes the component and loads initial data
-   */
-  public ngOnInit(): void {
-    this._loadInitialRecords();
+  ngOnInit(): void {
+    this.loadRecords(true);
   }
 
   /**
-   * Cleanup subscriptions on component destruction
+   * Mudança no filtro de favoritos
    */
-  public ngOnDestroy(): void {
-    this._destroy$.next();
-    this._destroy$.complete();
+  onFilterChange(event: ToggleSwitchChangeEvent): void {
+    this.showOnlyFavorites.set(event.checked);
+    this.resetAndReload();
   }
 
   /**
-   * Listens for scroll events to trigger infinite scroll
+   * Carrega mais records quando o scroll chega ao fim
    */
-  @HostListener('window:scroll', ['$event'])
-  public onScroll(): void {
-    if (this._shouldLoadMore()) {
-      this._loadMoreRecords();
+  onScrolled(): void {
+    this.loadRecords(false);
+  }
+
+  /**
+   * Retry quando há erro
+   */
+  onRetry(): void {
+    this.error.set(null);
+    this.loadRecords(true);
+  }
+
+  /**
+   * Manipula o toggle de favorito do card
+   */
+  onFavoriteToggled(record: IRecord): void {
+    // Estado anterior para rollback em caso de erro
+    const previousFavoriteState = !record.isFavorite;
+
+    this.updateRecordFavoriteState(record.id, record.isFavorite);
+
+    if (this.showOnlyFavorites() && !record.isFavorite) {
+      this.removeRecordFromList(record.id);
     }
-  }
 
-  /**
-   * Handles the filter switch state change
-   *
-   * @description This method is called when the user changes the state
-   * of the "Show only favorites" switch. Updates the internal property
-   * and re-filters the records list.
-   *
-   * @param {any} event - Event emitted by PrimeNG's InputSwitch component
-   * @param {boolean} event.checked - Current switch state (true/false)
-   * @returns {void}
-   */
-  public onFilterChange(event: ToggleSwitchChangeEvent): void {
-    this.showOnlyFavorites = event.checked;
-    this._resetAndReload();
-  }
-
-  /**
-   * Handles when a record has its favorite status changed
-   *
-   * @description This method is executed when a record card
-   * emits the favorite toggle event. Updates the corresponding record
-   * in the main list and re-filters the results.
-   *
-   * @param {FavoriteToggleEvent} event - Favorite toggle event data
-   * @param {string} event.recordId - ID of the changed record
-   * @param {boolean} event.isFavorite - New favorite status
-   */
-  public onFavoriteChanged(currentRecord: IRecord): void {
-    const record = this.allRecords.find(
-      (record) => record.id === currentRecord.id
-    );
-
-    if (record) {
-      // Atualiza localmente primeiro para UX responsiva
-      record.isFavorite = currentRecord.isFavorite;
-      this._updateFilteredRecords();
-
-      // Faz o update no backend
-      this._updateFavoriteInBackend(currentRecord);
-    }
-  }
-
-  /**
-   * Updates the favorite status in the backend
-   */
-  private _updateFavoriteInBackend(record: IRecord): void {
-    const { id: recordId, ...recordData } = record;
-
-    this._recordService
-      .partialUpdate(recordId, recordData)
+    this._recordsService
+      .toggleFavorite(record)
       .pipe(
-        takeUntil(this._destroy$),
         catchError(() => {
-          // Revert if something go wrong
-          const localRecord = this.allRecords.find((r) => r.id === record.id);
-          if (localRecord) {
-            localRecord.isFavorite = !record.isFavorite; // Reverte
-            this._updateFilteredRecords();
-          }
+          // Rollback em caso de erro
+          this.updateRecordFavoriteState(record.id, previousFavoriteState);
 
-          // TODO: add some kinda of feedback to user
+          // Mostrar mensagem de erro
+          this._messageService.add({
+            severity: 'error',
+            summary: 'Erro',
+            detail:
+              'Não foi possível alterar o status de favorito. Tente novamente.',
+            life: 3000,
+          });
 
-          return EMPTY;
-        })
+          return of(null);
+        }),
+        takeUntilDestroyed(this._destroyRef)
       )
       .subscribe();
   }
 
   /**
-   * Loads initial records
+   * Mostra todos os records (remove filtro de favoritos)
    */
-  private _loadInitialRecords(): void {
-    this.isLoading = true;
-    this._paginationParams.page = 1;
-    this.allRecords = [];
-    this.hasMoreRecords = true;
-
-    this._fetchRecords()
-      .pipe(
-        takeUntil(this._destroy$),
-        finalize(() => (this.isLoading = false))
-      )
-      .subscribe({
-        next: (response) => {
-          this.allRecords = response.data || [];
-          this._updateFilteredRecords();
-          this._checkIfHasMoreRecords(response.data?.length || 0);
-        },
-        error: () => {
-          this.allRecords = [];
-          this._updateFilteredRecords();
-        },
-      });
+  showAllRecords(): void {
+    this.showOnlyFavorites.set(false);
+    this.resetAndReload();
   }
 
   /**
-   * Loads more records for infinite scroll
+   * Reseta estado e recarrega
    */
+  private resetAndReload(): void {
+    this.records.set([]);
+    this.currentPage.set(0);
+    this.hasMore.set(true);
+    this.error.set(null);
+    this.loadRecords(true);
+  }
+
   /**
-   * Loads more records for infinite scroll
+   * Carrega records da API
    */
-  private _loadMoreRecords(): void {
-    if (this.isLoading || !this.hasMoreRecords) {
+  private loadRecords(isInitial: boolean): void {
+    if (this.loading()) {
       return;
     }
 
-    this.isLoading = true;
-    this._paginationParams.page++;
+    this.loading.set(true);
 
-    this._fetchRecords()
+    this.error.set(null);
+
+    const page = isInitial ? 1 : this.currentPage() + 1;
+
+    // Escolher método baseado no filtro
+    const request$ = this.showOnlyFavorites()
+      ? this._recordsService.getFavorites({
+          page,
+          size: this.pageSize,
+          sortBy: 'createdAt',
+        })
+      : this._recordsService.getAll({
+          page,
+          size: this.pageSize,
+          sortBy: 'createdAt',
+        });
+
+    request$
       .pipe(
-        takeUntil(this._destroy$),
-        finalize(() => (this.isLoading = false))
+        finalize(() => this.loading.set(false)),
+        catchError(() => {
+          this.error.set('Erro ao carregar records');
+
+          this._messageService.add({
+            severity: 'error',
+            summary: 'Erro',
+            detail: 'Não foi possível carregar os records. Tente novamente.',
+            life: 3000,
+          });
+
+          return of(null);
+        }),
+        takeUntilDestroyed(this._destroyRef)
       )
-      .subscribe({
-        next: (response) => {
-          const newRecords = response.data || [];
+      .subscribe((response) => {
+        if (response?.data) {
+          if (isInitial) {
+            this.records.set(response.data);
+          } else {
+            this.records.update((current) => [...current, ...response.data]);
+          }
 
-          const uniqueNewRecords = this._removeDuplicates(newRecords);
-
-          this.allRecords = [...this.allRecords, ...uniqueNewRecords];
-          this._updateFilteredRecords();
-          this._checkIfHasMoreRecords(newRecords.length);
-        },
-        error: (error) => {
-          console.error('Erro ao carregar mais registros:', error);
-          this._paginationParams.page--;
-        },
+          this.currentPage.set(page);
+          this.hasMore.set(response.meta?.limit > response.meta?.page);
+        }
       });
   }
 
   /**
-   * Remove duplicatas baseado no ID
+   * Atualiza o estado de favorito de um record específico
    */
-  private _removeDuplicates(newRecords: IRecord[]): IRecord[] {
-    const existingIds = new Set(this.allRecords.map((record) => record.id));
-    return newRecords.filter((record) => !existingIds.has(record.id));
+  private updateRecordFavoriteState(
+    recordId: number,
+    isFavorite: boolean
+  ): void {
+    this.records.update((records) =>
+      records.map((record) =>
+        record.id === recordId ? { ...record, isFavorite } : record
+      )
+    );
   }
 
   /**
-   * Fetches records based on current filter state
+   * Remove um record da lista
    */
-  private _fetchRecords() {
-    if (this.showOnlyFavorites) {
-      return this._recordService.getFavoriteRecords(this._paginationParams);
-    } else {
-      return this._recordService.getRecordsWithPagination(
-        this._paginationParams
-      );
-    }
+  private removeRecordFromList(recordId: number): void {
+    this.records.update((records) =>
+      records.filter((record) => record.id !== recordId)
+    );
   }
 
   /**
-   * Resets pagination and reloads data when filter changes
+   * Getter para template - verifica se está carregando
    */
-  private _resetAndReload(): void {
-    this._paginationParams.page = 1;
-    this.allRecords = [];
-    this.hasMoreRecords = true;
-    this._loadInitialRecords();
+  get isLoading(): boolean {
+    return this.loading();
   }
 
   /**
-   * Updates the filtered records list based on the current filter state
-   *
-   * @description Private method that recalculates the `filteredRecords` list
-   * based on the `showOnlyFavorites` value. If the filter is active,
-   * shows only favorite records; otherwise, shows all records.
-   *
-   * @returns {void}
+   * Cria array de skeletons para loading
    */
-  private _updateFilteredRecords(): void {
-    this.filteredRecords = this.showOnlyFavorites
-      ? this.allRecords.filter((record) => record.isFavorite)
-      : [...this.allRecords];
-  }
-
-  /**
-   * Checks if there are more records to load
-   */
-  private _checkIfHasMoreRecords(loadedCount: number): void {
-    this.hasMoreRecords = loadedCount === this._paginationParams.size;
-  }
-
-  /**
-   * Determines if more records should be loaded based on scroll position
-   */
-  private _shouldLoadMore(): boolean {
-    if (this.isLoading || !this.hasMoreRecords) {
-      return false;
-    }
-
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    const windowHeight = window.innerHeight;
-    const documentHeight = document.documentElement.scrollHeight;
-
-    // Trigger when user is 200px from bottom
-    const threshold = 200;
-
-    return scrollTop + windowHeight >= documentHeight - threshold;
+  get skeletonArray(): undefined[] {
+    return new Array(6).fill(undefined);
   }
 }

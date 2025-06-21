@@ -20,6 +20,83 @@
     </div>
   </div>
 
-  <!-- List cards -->
-  <app-records></app-records>
+  <!-- Content -->
+  <div class="records-page__content">
+    <!-- Erro -->
+    @if (error()) {
+    <div class="records-page__error">
+      <p-message severity="error" [text]="error()!"></p-message>
+      <p-button
+        label="Tentar novamente"
+        icon="pi pi-refresh"
+        (onClick)="onRetry()"
+      ></p-button>
+    </div>
+    }
+
+    <!-- List with infinite scroll -->
+    @else {
+    <div
+      class="records-page__scroll-container"
+      appInfiniteScroll
+      [threshold]="200"
+      [disabled]="loading() || !hasMore()"
+      [noMore]="!hasMore()"
+      (scrolled)="onScrolled()"
+    >
+      <div class="records-page__list">
+        <!-- Loading inicial - Skeletons -->
+        @if (loading() && records().length === 0) { @for (skeleton of
+        skeletonArray; track $index) {
+        <div class="record-item">
+          <app-record-card></app-record-card>
+        </div>
+        } }
+
+        <!-- Records -->
+        @for (record of records(); track record.id) {
+        <div class="record-item">
+          <app-record-card
+            [content]="record"
+            (favoriteToggled)="onFavoriteToggled($event)"
+          ></app-record-card>
+        </div>
+        }
+
+        <!-- Loading mais itens -->
+        @if (loading() && records().length > 0) {
+        <div class="records-page__loading-more">
+          <p-progressSpinner
+            [style]="{ width: '24px', height: '24px' }"
+          ></p-progressSpinner>
+        </div>
+        }
+
+        <!-- Estado vazio -->
+        @if (records().length === 0 && !loading()) {
+        <div class="records-page__empty">
+          <i class="pi pi-inbox"></i>
+          <h3>
+            {{
+              showOnlyFavorites()
+                ? "NENHUM favorito encontrado"
+                : "Nada encontrado"
+            }}
+          </h3>
+          <p>
+            {{
+              showOnlyFavorites()
+                ? "Você não me ama, odiou tudo?? 🤬"
+                : "Não há nada para exibir no momento."
+            }}
+          </p>
+        </div>
+        }
+      </div>
+    </div>
+    }
+  </div>
+
+  <!-- Toast para notificações -->
+  <p-toast position="top-right"></p-toast>
 </div>
