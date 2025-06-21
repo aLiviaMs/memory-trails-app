@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 import { IApiResponse, IRequestOptions } from '../../../core/models/interfaces';
 import { BaseService } from '../../../core/services/base.service';
 import {
+  IBulkUploadResponse,
   ICreateFolderDto,
   IDriveFile,
   IDriveFilesListResponse,
@@ -292,6 +293,40 @@ export class DriveService extends BaseService<IDriveFile> {
   }
 
   // ========== BATCH OPERATIONS ==========
+
+  /**
+   * Uploads multiple files to Google Drive in a single batch operation.
+   *
+   * @param files - Array of File objects to upload
+   * @param uploadOptions - Upload configuration options
+   * @returns Observable of bulk upload results
+   *
+   * @example
+   * ```typescript
+   * this.uploadBulkFiles([file1, file2, file3], { parentId: 'folder-id' })
+   *   .subscribe(response => {
+   *     console.log('Successful uploads:', response.data.successfulUploads);
+   *     console.log('Failed uploads:', response.data.failedUploads);
+   *   });
+   * ```
+   */
+  uploadBulkFiles(
+    files: File[],
+    uploadOptions?: Pick<IFileUploadOptions, 'parentId'>
+  ): Observable<IApiResponse<IBulkUploadResponse>> {
+    const formData = new FormData();
+
+    files.forEach((file: File) => {
+      formData.append('files', file, file.name);
+    });
+
+    if (uploadOptions?.parentId) {
+      formData.append('folderId', uploadOptions.parentId);
+    }
+
+    return this.post<IBulkUploadResponse>(formData, 'files/bulk');
+  }
+
 
   /**
    * Bulk deletes multiple files.
